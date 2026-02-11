@@ -450,6 +450,95 @@ final class ConnectionTest extends TestCase
         self::assertSame('Bob', $name2);
     }
 
+    // -- toIterable --
+
+    public function testToIterableYieldsAllRows(): void
+    {
+        $this->createUsersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+        $this->insertUser('Bob', 'bob@example.com');
+        $this->insertUser('Charlie', 'charlie@example.com');
+
+        $rows = [];
+        foreach ($this->connection->toIterable('SELECT name FROM users ORDER BY name') as $row) {
+            $rows[] = $row;
+        }
+
+        self::assertCount(3, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
+        self::assertSame('Bob', $rows[1]['name']);
+        self::assertSame('Charlie', $rows[2]['name']);
+    }
+
+    public function testToIterableWithParams(): void
+    {
+        $this->createUsersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+        $this->insertUser('Bob', 'bob@example.com');
+
+        $rows = [];
+        foreach ($this->connection->toIterable('SELECT name FROM users WHERE email = :email', ['email' => 'bob@example.com']) as $row) {
+            $rows[] = $row;
+        }
+
+        self::assertCount(1, $rows);
+        self::assertSame('Bob', $rows[0]['name']);
+    }
+
+    public function testToIterableReturnsEmptyGeneratorWhenNoRows(): void
+    {
+        $this->createUsersTable();
+
+        $rows = [];
+        foreach ($this->connection->toIterable('SELECT * FROM users') as $row) {
+            $rows[] = $row;
+        }
+
+        self::assertSame([], $rows);
+    }
+
+    public function testToIterableReturnsGenerator(): void
+    {
+        $this->createUsersTable();
+
+        $result = $this->connection->toIterable('SELECT * FROM users');
+
+        self::assertInstanceOf(\Generator::class, $result);
+    }
+
+    public function testToIterableSupportsEarlyBreak(): void
+    {
+        $this->createUsersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+        $this->insertUser('Bob', 'bob@example.com');
+        $this->insertUser('Charlie', 'charlie@example.com');
+
+        $rows = [];
+        foreach ($this->connection->toIterable('SELECT name FROM users ORDER BY name') as $row) {
+            $rows[] = $row;
+            if (\count($rows) === 2) {
+                break;
+            }
+        }
+
+        self::assertCount(2, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
+        self::assertSame('Bob', $rows[1]['name']);
+    }
+
+    public function testToIterableYieldsAssociativeArrays(): void
+    {
+        $this->createUsersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+
+        foreach ($this->connection->toIterable('SELECT name, email FROM users') as $row) {
+            self::assertArrayHasKey('name', $row);
+            self::assertArrayHasKey('email', $row);
+            self::assertSame('Alice', $row['name']);
+            self::assertSame('alice@example.com', $row['email']);
+        }
+    }
+
     // -- helpers --
 
     private function createUsersTable(): void

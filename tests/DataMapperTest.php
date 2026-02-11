@@ -527,6 +527,178 @@ final class DataMapperTest extends TestCase
     }
 
     // -----------------------------------------------------------------------
+    // iterateAll
+    // -----------------------------------------------------------------------
+
+    public function testIterateAllAutoMode(): void
+    {
+        $this->createSimpleUsersTable();
+        $this->insertSimpleUser('Alice', 'alice@example.com');
+        $this->insertSimpleUser('Bob', 'bob@example.com');
+
+        $users = [];
+        foreach ($this->mapper->iterateAll(SimpleUser::class) as $user) {
+            $users[] = $user;
+        }
+
+        self::assertCount(2, $users);
+        self::assertInstanceOf(SimpleUser::class, $users[0]);
+        self::assertSame('Alice', $users[0]->name);
+        self::assertSame('Bob', $users[1]->name);
+    }
+
+    public function testIterateAllReturnsGenerator(): void
+    {
+        $this->createSimpleUsersTable();
+
+        $result = $this->mapper->iterateAll(SimpleUser::class);
+
+        self::assertInstanceOf(\Generator::class, $result);
+    }
+
+    public function testIterateAllWithWhereConditions(): void
+    {
+        $this->createSimpleUsersTable();
+        $this->insertSimpleUser('Alice', 'alice@example.com');
+        $this->insertSimpleUser('Bob', 'bob@example.com');
+        $this->insertSimpleUser('Charlie', 'charlie@example.com');
+
+        $users = [];
+        foreach ($this->mapper->iterateAll(SimpleUser::class, ['name' => 'Bob']) as $user) {
+            $users[] = $user;
+        }
+
+        self::assertCount(1, $users);
+        self::assertSame('Bob', $users[0]->name);
+    }
+
+    public function testIterateAllWithOrderBy(): void
+    {
+        $this->createSimpleUsersTable();
+        $this->insertSimpleUser('Charlie', 'charlie@example.com');
+        $this->insertSimpleUser('Alice', 'alice@example.com');
+        $this->insertSimpleUser('Bob', 'bob@example.com');
+
+        $users = [];
+        foreach ($this->mapper->iterateAll(SimpleUser::class, orderBy: ['name' => 'ASC']) as $user) {
+            $users[] = $user;
+        }
+
+        self::assertCount(3, $users);
+        self::assertSame('Alice', $users[0]->name);
+        self::assertSame('Bob', $users[1]->name);
+        self::assertSame('Charlie', $users[2]->name);
+    }
+
+    public function testIterateAllWithLimitAndOffset(): void
+    {
+        $this->createSimpleUsersTable();
+        $this->insertSimpleUser('Alice', 'alice@example.com');
+        $this->insertSimpleUser('Bob', 'bob@example.com');
+        $this->insertSimpleUser('Charlie', 'charlie@example.com');
+
+        $users = [];
+        foreach ($this->mapper->iterateAll(
+            SimpleUser::class,
+            orderBy: ['name' => 'ASC'],
+            limit: 2,
+            offset: 1,
+        ) as $user) {
+            $users[] = $user;
+        }
+
+        self::assertCount(2, $users);
+        self::assertSame('Bob', $users[0]->name);
+        self::assertSame('Charlie', $users[1]->name);
+    }
+
+    public function testIterateAllYieldsEmptyGeneratorWhenNoRows(): void
+    {
+        $this->createSimpleUsersTable();
+
+        $users = [];
+        foreach ($this->mapper->iterateAll(SimpleUser::class) as $user) {
+            $users[] = $user;
+        }
+
+        self::assertSame([], $users);
+    }
+
+    public function testIterateAllWithRsm(): void
+    {
+        $this->createSimpleUsersTable();
+        $this->insertSimpleUser('Alice', 'alice@example.com');
+        $this->insertSimpleUser('Bob', 'bob@example.com');
+
+        $rsm = new ResultSetMapping(SimpleUser::class, table: 'simple_users');
+        $rsm->addField('id', 'id')
+            ->addField('name', 'name')
+            ->addField('email', 'email');
+
+        $users = [];
+        foreach ($this->mapper->iterateAll($rsm) as $user) {
+            $users[] = $user;
+        }
+
+        self::assertCount(2, $users);
+        self::assertSame('Alice', $users[0]->name);
+        self::assertSame('alice@example.com', $users[0]->email);
+    }
+
+    public function testIterateAllSupportsEarlyBreak(): void
+    {
+        $this->createSimpleUsersTable();
+        $this->insertSimpleUser('Alice', 'alice@example.com');
+        $this->insertSimpleUser('Bob', 'bob@example.com');
+        $this->insertSimpleUser('Charlie', 'charlie@example.com');
+
+        $users = [];
+        foreach ($this->mapper->iterateAll(SimpleUser::class, orderBy: ['name' => 'ASC']) as $user) {
+            $users[] = $user;
+            if (\count($users) === 2) {
+                break;
+            }
+        }
+
+        self::assertCount(2, $users);
+        self::assertSame('Alice', $users[0]->name);
+        self::assertSame('Bob', $users[1]->name);
+    }
+
+    public function testIterateAllWithEnumHydration(): void
+    {
+        $this->createDtoWithEnumTable();
+        $this->connection->executeStatement(
+            "INSERT INTO dto_with_enums (status, previous_status) VALUES ('active', 'inactive')",
+        );
+        $this->connection->executeStatement(
+            "INSERT INTO dto_with_enums (status, previous_status) VALUES ('banned', NULL)",
+        );
+
+        $dtos = [];
+        foreach ($this->mapper->iterateAll(DtoWithEnum::class) as $dto) {
+            $dtos[] = $dto;
+        }
+
+        self::assertCount(2, $dtos);
+        self::assertSame(UserStatus::Active, $dtos[0]->status);
+        self::assertSame(UserStatus::Inactive, $dtos[0]->previousStatus);
+        self::assertSame(UserStatus::Banned, $dtos[1]->status);
+        self::assertNull($dtos[1]->previousStatus);
+    }
+
+    public function testIterateAllThrowsWhenRsmHasNoTable(): void
+    {
+        $rsm = new ResultSetMapping(SimpleUser::class);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('table name');
+
+        // Must consume at least one element to trigger the generator
+        iterator_to_array($this->mapper->iterateAll($rsm));
+    }
+
+    // -----------------------------------------------------------------------
     // findOne
     // -----------------------------------------------------------------------
 

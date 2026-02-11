@@ -998,6 +998,153 @@ final class QueryBuilderTest extends TestCase
         self::assertCount(3, $rows);
     }
 
+    // --- toIterable ---
+
+    public function testToIterableYieldsAllRows(): void
+    {
+        $this->createUsersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+        $this->insertUser('Bob', 'bob@example.com');
+        $this->insertUser('Charlie', 'charlie@example.com');
+
+        $rows = [];
+        foreach ($this->connection->createQueryBuilder()
+            ->select('name')
+            ->from('users')
+            ->orderBy('name', 'ASC')
+            ->toIterable() as $row
+        ) {
+            $rows[] = $row;
+        }
+
+        self::assertCount(3, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
+        self::assertSame('Bob', $rows[1]['name']);
+        self::assertSame('Charlie', $rows[2]['name']);
+    }
+
+    public function testToIterableWithWhereAndParams(): void
+    {
+        $this->createUsersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+        $this->insertUser('Bob', 'bob@example.com');
+
+        $rows = [];
+        foreach ($this->connection->createQueryBuilder()
+            ->select('name', 'email')
+            ->from('users')
+            ->where('name = :name')
+            ->setParameter('name', 'Alice')
+            ->toIterable() as $row
+        ) {
+            $rows[] = $row;
+        }
+
+        self::assertCount(1, $rows);
+        self::assertSame(['name' => 'Alice', 'email' => 'alice@example.com'], $rows[0]);
+    }
+
+    public function testToIterableReturnsEmptyGeneratorWhenNoRows(): void
+    {
+        $this->createUsersTable();
+
+        $rows = [];
+        foreach ($this->connection->createQueryBuilder()
+            ->select('name')
+            ->from('users')
+            ->toIterable() as $row
+        ) {
+            $rows[] = $row;
+        }
+
+        self::assertSame([], $rows);
+    }
+
+    public function testToIterableReturnsGenerator(): void
+    {
+        $this->createUsersTable();
+
+        $result = $this->connection->createQueryBuilder()
+            ->select('name')
+            ->from('users')
+            ->toIterable();
+
+        self::assertInstanceOf(\Generator::class, $result);
+    }
+
+    public function testToIterableWithLimitAndOffset(): void
+    {
+        $this->createUsersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+        $this->insertUser('Bob', 'bob@example.com');
+        $this->insertUser('Charlie', 'charlie@example.com');
+
+        $rows = [];
+        foreach ($this->connection->createQueryBuilder()
+            ->select('name')
+            ->from('users')
+            ->orderBy('name', 'ASC')
+            ->setMaxResults(2)
+            ->setFirstResult(1)
+            ->toIterable() as $row
+        ) {
+            $rows[] = $row;
+        }
+
+        self::assertCount(2, $rows);
+        self::assertSame('Bob', $rows[0]['name']);
+        self::assertSame('Charlie', $rows[1]['name']);
+    }
+
+    public function testToIterableSupportsEarlyBreak(): void
+    {
+        $this->createUsersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+        $this->insertUser('Bob', 'bob@example.com');
+        $this->insertUser('Charlie', 'charlie@example.com');
+
+        $rows = [];
+        foreach ($this->connection->createQueryBuilder()
+            ->select('name')
+            ->from('users')
+            ->orderBy('name', 'ASC')
+            ->toIterable() as $row
+        ) {
+            $rows[] = $row;
+            if (\count($rows) === 1) {
+                break;
+            }
+        }
+
+        self::assertCount(1, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
+    }
+
+    public function testToIterableWithJoin(): void
+    {
+        $this->createUsersTable();
+        $this->createOrdersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+        $this->insertOrder(1, 100.0);
+        $this->insertOrder(1, 50.0);
+
+        $rows = [];
+        foreach ($this->connection->createQueryBuilder()
+            ->select('u.name', 'o.total')
+            ->from('users', 'u')
+            ->innerJoin('u', 'orders', 'o', 'o.user_id = u.id')
+            ->orderBy('o.total', 'ASC')
+            ->toIterable() as $row
+        ) {
+            $rows[] = $row;
+        }
+
+        self::assertCount(2, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
+        self::assertEqualsWithDelta(50.0, (float) $rows[0]['total'], 0.001);
+        self::assertEqualsWithDelta(100.0, (float) $rows[1]['total'], 0.001);
+    }
+
     // --- SELECT addSelect sets type to Select ---
 
     public function testAddSelectSetsSelectType(): void

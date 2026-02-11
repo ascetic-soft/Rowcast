@@ -152,29 +152,45 @@ final readonly class DataMapper
         ?int $limit = null,
         ?int $offset = null,
     ): array {
-        [$table, $className, $rsm] = $this->resolveReadTarget($target);
-
-        $qb = $this->connection->createQueryBuilder();
-        $qb->select('*')->from($table);
-
-        $this->applyWhere($qb, $where);
-
-        foreach ($orderBy as $column => $direction) {
-            $qb->addOrderBy($column, $direction);
-        }
-
-        if ($limit !== null) {
-            $qb->setMaxResults($limit);
-        }
-
-        if ($offset !== null) {
-            $qb->setFirstResult($offset);
-        }
+        [$qb, $className, $rsm] = $this->buildSelectQuery($target, $where, $orderBy, $limit, $offset);
 
         $rows = $qb->fetchAllAssociative();
 
         /** @var list<T> */
         return $this->hydrator->hydrateAll($className, $rows, $rsm);
+    }
+
+    /**
+     * Finds all matching rows and yields them as hydrated DTO objects one at a time.
+     *
+     * Uses PDO cursor-based fetching for memory-efficient iteration over large result sets.
+     * Each row is hydrated lazily — only when consumed from the generator.
+     *
+     * @template T of object
+     *
+     * @param class-string<T>|ResultSetMapping $target  DTO class name or ResultSetMapping
+     * @param array<string, mixed>             $where   WHERE conditions as column => value pairs
+     * @param array<string, string>            $orderBy ORDER BY as column => direction ('ASC'|'DESC')
+     * @param int|null                         $limit   Maximum number of rows to return
+     * @param int|null                         $offset  Number of rows to skip
+     *
+     * @return iterable<int, T, void, void>
+     */
+    public function iterateAll(
+        string|ResultSetMapping $target,
+        array $where = [],
+        array $orderBy = [],
+        ?int $limit = null,
+        ?int $offset = null,
+    ): iterable {
+        [$qb, $className, $rsm] = $this->buildSelectQuery($target, $where, $orderBy, $limit, $offset);
+
+        foreach ($qb->toIterable() as $row) {
+            /** @var T $object */
+            $object = $this->hydrator->hydrate($className, $row, $rsm);
+
+            yield $object;
+        }
     }
 
     /**
@@ -191,13 +207,7 @@ final readonly class DataMapper
         string|ResultSetMapping $target,
         array $where = [],
     ): object|null {
-        [$table, $className, $rsm] = $this->resolveReadTarget($target);
-
-        $qb = $this->connection->createQueryBuilder();
-        $qb->select('*')->from($table);
-
-        $this->applyWhere($qb, $where);
-        $qb->setMaxResults(1);
+        [$qb, $className, $rsm] = $this->buildSelectQuery($target, $where, limit: 1);
 
         $row = $qb->fetchAssociative();
 
@@ -222,6 +232,46 @@ final readonly class DataMapper
     // -----------------------------------------------------------------------
     // Private helpers
     // -----------------------------------------------------------------------
+
+    /**
+     * Builds a SELECT QueryBuilder from read-target parameters.
+     *
+     * Shared by findAll, iterateAll, and findOne to avoid query-building duplication.
+     *
+     * @param class-string|ResultSetMapping $target
+     * @param array<string, mixed>          $where
+     * @param array<string, string>         $orderBy
+     *
+     * @return array{0: QueryBuilder\QueryBuilder, 1: class-string, 2: ResultSetMapping|null}
+     */
+    private function buildSelectQuery(
+        string|ResultSetMapping $target,
+        array $where = [],
+        array $orderBy = [],
+        ?int $limit = null,
+        ?int $offset = null,
+    ): array {
+        [$table, $className, $rsm] = $this->resolveReadTarget($target);
+
+        $qb = $this->connection->createQueryBuilder();
+        $qb->select('*')->from($table);
+
+        $this->applyWhere($qb, $where);
+
+        foreach ($orderBy as $column => $direction) {
+            $qb->addOrderBy($column, $direction);
+        }
+
+        if ($limit !== null) {
+            $qb->setMaxResults($limit);
+        }
+
+        if ($offset !== null) {
+            $qb->setFirstResult($offset);
+        }
+
+        return [$qb, $className, $rsm];
+    }
 
     /**
      * Resolves the table name and optional RSM for write operations (insert/update/delete).

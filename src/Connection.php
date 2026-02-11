@@ -178,6 +178,51 @@ final readonly class Connection
     }
 
     /**
+     * Executes a query and returns a Generator that yields rows one at a time.
+     *
+     * Uses PDO cursor-based fetching for memory-efficient iteration over large result sets:
+     * - MySQL: unbuffered queries (PDO::MYSQL_ATTR_USE_BUFFERED_QUERY = false)
+     * - PostgreSQL: scrollable cursor (PDO::ATTR_CURSOR = PDO::CURSOR_SCROLL)
+     * - Other drivers: regular sequential fetch
+     *
+     * @param array<string|int, mixed> $params Positional (?) or named (:name) parameters
+     *
+     * @return iterable<int, array<string, mixed>, void, void>
+     */
+    public function toIterable(string $sql, array $params = []): iterable
+    {
+        $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        $restoreBuffered = false;
+
+        try {
+            if ($driver === 'mysql') {
+                $this->pdo->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, false);
+                $restoreBuffered = true;
+                $stmt = $this->pdo->prepare($sql);
+            } elseif ($driver === 'pgsql') {
+                $stmt = $this->pdo->prepare($sql, [\PDO::ATTR_CURSOR => \PDO::CURSOR_SCROLL]);
+            } else {
+                $stmt = $this->pdo->prepare($sql);
+            }
+
+            $stmt->execute($params);
+
+            try {
+                while (false !== ($row = $stmt->fetch(\PDO::FETCH_ASSOC))) {
+                    /** @var array<string, mixed> $row */
+                    yield $row;
+                }
+            } finally {
+                $stmt->closeCursor();
+            }
+        } finally {
+            if ($restoreBuffered) {
+                $this->pdo->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true);
+            }
+        }
+    }
+
+    /**
      * Returns the underlying PDO instance.
      */
     public function getPdo(): \PDO
