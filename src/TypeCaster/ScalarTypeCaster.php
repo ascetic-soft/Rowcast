@@ -15,11 +15,14 @@ final class ScalarTypeCaster implements TypeCasterInterface
 
     public function cast(mixed $value, string $type): int|float|bool|string
     {
+        $val = is_scalar($value) || $value === null ? $value : 0;
+
         return match ($type) {
-            'int' => (int) $value,
-            'float' => (float) $value,
-            'bool' => (bool) $value,
-            'string' => (string) $value,
+            'int' => (int) $val,
+            'float' => (float) $val,
+            'bool' => (bool) $val,
+            'string' => (string) $val,
+            default => throw new \InvalidArgumentException('Unsupported type: ' . $type),
         };
     }
 }

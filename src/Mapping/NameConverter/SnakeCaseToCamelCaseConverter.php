@@ -23,6 +23,8 @@ final class SnakeCaseToCamelCaseConverter implements NameConverterInterface
      */
     public function toColumnName(string $propertyName): string
     {
-        return strtolower(preg_replace('/[A-Z]/', '_$0', $propertyName));
+        $replaced = preg_replace('/[A-Z]/', '_$0', $propertyName);
+
+        return strtolower($replaced ?? $propertyName);
     }
 }

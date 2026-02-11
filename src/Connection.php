@@ -84,7 +84,7 @@ final class Connection
     {
         $stmt = $this->executeQuery($sql, $params);
 
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        return array_values($stmt->fetchAll(\PDO::FETCH_ASSOC));
     }
 
     /**
@@ -98,7 +98,14 @@ final class Connection
     {
         $stmt = $this->executeQuery($sql, $params);
 
-        return $stmt->fetch(\PDO::FETCH_ASSOC);
+        $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (is_array($result)) {
+            /** @var array<string, mixed> $result */
+            return $result;
+        }
+
+        return false;
     }
 
     /**

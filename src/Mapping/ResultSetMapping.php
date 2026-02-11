@@ -35,7 +35,7 @@ final class ResultSetMapping
      *     ],
      * ]
      *
-     * @param array{class: class-string, table?: string, fields?: array<string, string>} $config
+     * @param array{class?: class-string, table?: string, fields?: array<string, string>} $config
      */
     public static function fromArray(array $config): self
     {

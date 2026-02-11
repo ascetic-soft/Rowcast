@@ -75,7 +75,7 @@ class QueryBuilder
     public function select(string ...$columns): self
     {
         $this->type = QueryType::Select;
-        $this->select = $columns;
+        $this->select = array_values($columns);
 
         return $this;
     }
@@ -86,7 +86,7 @@ class QueryBuilder
     public function addSelect(string ...$columns): self
     {
         $this->type = QueryType::Select;
-        $this->select = array_merge($this->select, $columns);
+        $this->select = array_values(array_merge($this->select, $columns));
 
         return $this;
     }

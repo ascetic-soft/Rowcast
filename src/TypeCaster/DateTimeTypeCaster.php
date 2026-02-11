@@ -21,13 +21,20 @@ final class DateTimeTypeCaster implements TypeCasterInterface
 
     public function cast(mixed $value, string $type): DateTimeImmutable|DateTime
     {
-        if ($value instanceof $type) {
+        if ($value instanceof DateTimeImmutable) {
             return $value;
         }
 
+        if ($value instanceof DateTime) {
+            return $value;
+        }
+
+        $strValue = is_scalar($value) || $value === null ? (string) $value : '';
+
         return match ($type) {
-            DateTimeImmutable::class => new DateTimeImmutable((string) $value),
-            DateTime::class => new DateTime((string) $value),
+            DateTimeImmutable::class => new DateTimeImmutable($strValue),
+            DateTime::class => new DateTime($strValue),
+            default => throw new \InvalidArgumentException('Unsupported type: ' . $type),
         };
     }
 }

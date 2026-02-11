@@ -173,6 +173,7 @@ final class DataMapper
 
         $rows = $qb->fetchAllAssociative();
 
+        /** @var list<T> */
         return $this->hydrator->hydrateAll($className, $rows, $rsm);
     }
 
@@ -189,7 +190,7 @@ final class DataMapper
     public function findOne(
         string|ResultSetMapping $target,
         array $where = [],
-    ): ?object {
+    ): object|null {
         [$table, $className, $rsm] = $this->resolveReadTarget($target);
 
         $qb = $this->connection->createQueryBuilder();
@@ -204,7 +205,10 @@ final class DataMapper
             return null;
         }
 
-        return $this->hydrator->hydrate($className, $row, $rsm);
+        /** @var T $result */
+        $result = $this->hydrator->hydrate($className, $row, $rsm);
+
+        return $result;
     }
 
     /**
@@ -246,6 +250,8 @@ final class DataMapper
     /**
      * Resolves table name, class name, and optional RSM for read operations (findAll/findOne).
      *
+     * @param class-string|ResultSetMapping $target
+     *
      * @return array{0: string, 1: class-string, 2: ResultSetMapping|null}
      */
     private function resolveReadTarget(string|ResultSetMapping $target): array
@@ -280,9 +286,9 @@ final class DataMapper
         $shortName = (new \ReflectionClass($className))->getShortName();
 
         // CamelCase → snake_case (avoid leading underscore for first uppercase letter)
-        $snakeCase = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $shortName));
+        $replaced = preg_replace('/(?<!^)[A-Z]/', '_$0', $shortName);
 
-        return $snakeCase . 's';
+        return strtolower($replaced ?? $shortName) . 's';
     }
 
     /**

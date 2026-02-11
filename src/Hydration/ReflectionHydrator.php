@@ -50,6 +50,9 @@ final class ReflectionHydrator implements HydratorInterface
 
     /**
      * Hydrate using explicit ResultSetMapping (column -> property map).
+     *
+     * @param \ReflectionClass<object> $reflClass
+     * @param array<string, mixed>     $row
      */
     private function hydrateWithRsm(\ReflectionClass $reflClass, object $object, array $row, ResultSetMapping $rsm): void
     {
@@ -66,6 +69,9 @@ final class ReflectionHydrator implements HydratorInterface
     /**
      * Hydrate using auto-discovery: reads class properties via Reflection
      * and uses NameConverter to derive column names.
+     *
+     * @param \ReflectionClass<object> $reflClass
+     * @param array<string, mixed>     $row
      */
     private function hydrateAuto(\ReflectionClass $reflClass, object $object, array $row): void
     {
