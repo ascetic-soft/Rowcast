@@ -269,6 +269,7 @@ Rowcast automatically casts database values to the PHP types declared on your DT
 | `"1"` / `"0"`  | `bool`                 | `true` / `false`      |
 | `42`           | `string`               | `"42"`                |
 | `"2025-06-15 10:30:00"` | `DateTimeImmutable` | `DateTimeImmutable` object |
+| `"2025-06-15 10:30:00"` | `DateTimeInterface` | `DateTimeImmutable` object |
 | `"2025-06-15 10:30:00"` | `DateTime`          | `DateTime` object     |
 | `"active"`     | `UserStatus` (BackedEnum) | `UserStatus::Active` |
 | `NULL`         | `?int`, `?string`, etc. | `null`               |
@@ -286,7 +287,7 @@ Rowcast automatically casts database values to the PHP types declared on your DT
 ### Built-in Type Casters
 
 - **ScalarTypeCaster** — `int`, `float`, `bool`, `string`
-- **DateTimeTypeCaster** — `DateTime`, `DateTimeImmutable`
+- **DateTimeTypeCaster** — `DateTime`, `DateTimeImmutable`, `DateTimeInterface` (resolved to `DateTimeImmutable`)
 - **EnumTypeCaster** — any `BackedEnum`
 
 ### Custom Type Caster
@@ -486,7 +487,7 @@ $user = $mapper->findOne(UserDto::class, ['id' => 1]);
 
 ## Working with DateTime
 
-`DateTime` and `DateTimeImmutable` properties are automatically handled:
+`DateTime`, `DateTimeImmutable`, and `DateTimeInterface` properties are automatically handled. When the property type is `DateTimeInterface`, the value is always resolved to `DateTimeImmutable`:
 
 ```php
 class Post
@@ -531,7 +532,7 @@ AsceticSoft\Rowcast\
     ├── TypeCasterInterface            # Type caster contract
     ├── TypeCasterRegistry             # Registry managing multiple casters
     ├── ScalarTypeCaster               # int, float, bool, string
-    ├── DateTimeTypeCaster             # DateTime, DateTimeImmutable
+    ├── DateTimeTypeCaster             # DateTime, DateTimeImmutable, DateTimeInterface
     └── EnumTypeCaster                 # BackedEnum
 ```
 
