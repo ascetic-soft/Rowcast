@@ -182,6 +182,43 @@ $connection->transactional(function (Connection $conn) {
 });
 ```
 
+### Nested Transactions (Savepoints)
+
+By default, calling `beginTransaction()` inside an active transaction will fail. Enable savepoint-based nesting via the `nestTransactions` option:
+
+```php
+// Via factory
+$connection = Connection::create('mysql:host=localhost;dbname=app', 'root', 'secret', nestTransactions: true);
+
+// Via constructor
+$connection = new Connection($pdo, nestTransactions: true);
+```
+
+When enabled, inner `beginTransaction()` calls create SQL `SAVEPOINT`s, and `commit()` / `rollBack()` release or roll back to the corresponding savepoint:
+
+```php
+$connection->transactional(function (Connection $conn) {
+    $conn->executeStatement('INSERT INTO users (name) VALUES (?)', ['Alice']);
+
+    try {
+        $conn->transactional(function (Connection $inner) {
+            $inner->executeStatement('INSERT INTO users (name) VALUES (?)', ['Bob']);
+            throw new \RuntimeException('inner failure');
+        });
+    } catch (\RuntimeException) {
+        // Only the inner transaction (Bob) is rolled back.
+        // Alice's insert is preserved.
+    }
+});
+// Alice is committed; Bob is not.
+```
+
+You can check the current nesting depth at any time:
+
+```php
+$connection->getTransactionNestingLevel(); // 0 — no active transaction
+```
+
 ## DataMapper
 
 ### insert

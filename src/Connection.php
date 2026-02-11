@@ -10,10 +10,17 @@ use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
  * Thin wrapper around PDO providing convenience methods for query execution
  * and a factory for QueryBuilder instances.
  */
-final readonly class Connection
+final class Connection
 {
+    private int $transactionNestingLevel = 0;
+
+    /**
+     * @param bool $nestTransactions When true, nested beginTransaction()/commit()/rollBack()
+     *                               calls use SQL SAVEPOINTs instead of failing.
+     */
     public function __construct(
-        private \PDO $pdo,
+        private readonly \PDO $pdo,
+        private readonly bool $nestTransactions = false,
     ) {
         // Ensure PDO throws exceptions on errors — required for safe operation
         $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
@@ -23,12 +30,14 @@ final readonly class Connection
      * Creates a new Connection from DSN parameters.
      *
      * @param array<int, mixed> $options PDO driver options
+     * @param bool $nestTransactions Enable savepoint-based nested transactions
      */
     public static function create(
         string $dsn,
         ?string $username = null,
         ?string $password = null,
         array $options = [],
+        bool $nestTransactions = false,
     ): self {
         $defaultOptions = [
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
@@ -37,7 +46,7 @@ final readonly class Connection
 
         $pdo = new \PDO($dsn, $username, $password, array_replace($defaultOptions, $options));
 
-        return new self($pdo);
+        return new self($pdo, $nestTransactions);
     }
 
     /**
@@ -129,26 +138,87 @@ final readonly class Connection
 
     /**
      * Starts a database transaction.
+     *
+     * When nested transactions are enabled, inner calls create SAVEPOINTs
+     * instead of starting a real transaction.
      */
     public function beginTransaction(): void
     {
-        $this->pdo->beginTransaction();
+        if (!$this->nestTransactions) {
+            $this->pdo->beginTransaction();
+
+            return;
+        }
+
+        if ($this->transactionNestingLevel === 0) {
+            $this->pdo->beginTransaction();
+        } else {
+            $this->pdo->exec('SAVEPOINT ROWCAST_' . $this->transactionNestingLevel);
+        }
+
+        ++$this->transactionNestingLevel;
     }
 
     /**
      * Commits the current transaction.
+     *
+     * When nested transactions are enabled, inner calls release the corresponding SAVEPOINT.
      */
     public function commit(): void
     {
-        $this->pdo->commit();
+        if (!$this->nestTransactions) {
+            $this->pdo->commit();
+
+            return;
+        }
+
+        if ($this->transactionNestingLevel === 0) {
+            throw new \LogicException('No active transaction.');
+        }
+
+        if ($this->transactionNestingLevel === 1) {
+            $this->pdo->commit();
+        } else {
+            $this->pdo->exec('RELEASE SAVEPOINT ROWCAST_' . ($this->transactionNestingLevel - 1));
+        }
+
+        --$this->transactionNestingLevel;
     }
 
     /**
      * Rolls back the current transaction.
+     *
+     * When nested transactions are enabled, inner calls roll back to the corresponding SAVEPOINT.
      */
     public function rollBack(): void
     {
-        $this->pdo->rollBack();
+        if (!$this->nestTransactions) {
+            $this->pdo->rollBack();
+
+            return;
+        }
+
+        if ($this->transactionNestingLevel === 0) {
+            throw new \LogicException('No active transaction.');
+        }
+
+        if ($this->transactionNestingLevel === 1) {
+            $this->pdo->rollBack();
+        } else {
+            $this->pdo->exec('ROLLBACK TO SAVEPOINT ROWCAST_' . ($this->transactionNestingLevel - 1));
+        }
+
+        --$this->transactionNestingLevel;
+    }
+
+    /**
+     * Returns the current transaction nesting depth.
+     *
+     * Always returns 0 when nested transactions are disabled.
+     */
+    public function getTransactionNestingLevel(): int
+    {
+        return $this->transactionNestingLevel;
     }
 
     /**
@@ -156,6 +226,9 @@ final readonly class Connection
      *
      * If the callback completes without throwing, the transaction is committed.
      * If the callback throws, the transaction is rolled back and the exception is re-thrown.
+     *
+     * When nested transactions are enabled, inner transactional() calls use SAVEPOINTs,
+     * so a failure in the inner callback rolls back only to the savepoint, not the entire transaction.
      *
      * @template T
      * @param callable(self): T $callback

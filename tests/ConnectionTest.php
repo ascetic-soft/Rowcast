@@ -539,7 +539,202 @@ final class ConnectionTest extends TestCase
         }
     }
 
+    // -- nested transactions --
+
+    public function testNestedBeginTransactionAndCommit(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), nestTransactions: true);
+        $this->createUsersTableOn($connection);
+
+        $connection->beginTransaction();               // real BEGIN
+        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Alice', 'a@example.com']);
+
+        $connection->beginTransaction();               // SAVEPOINT ROWCAST_1
+        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Bob', 'b@example.com']);
+        $connection->commit();                         // RELEASE SAVEPOINT ROWCAST_1
+
+        $connection->commit();                         // real COMMIT
+
+        $count = $connection->fetchOne('SELECT COUNT(*) FROM users');
+        self::assertSame(2, (int) $count);
+    }
+
+    public function testNestedRollBackInnerKeepsOuterData(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), nestTransactions: true);
+        $this->createUsersTableOn($connection);
+
+        $connection->beginTransaction();
+        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Alice', 'a@example.com']);
+
+        $connection->beginTransaction();               // SAVEPOINT
+        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Bob', 'b@example.com']);
+        $connection->rollBack();                       // ROLLBACK TO SAVEPOINT
+
+        $connection->commit();                         // real COMMIT
+
+        $rows = $connection->fetchAllAssociative('SELECT name FROM users');
+        self::assertCount(1, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
+    }
+
+    public function testNestedRollBackOuterRemovesEverything(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), nestTransactions: true);
+        $this->createUsersTableOn($connection);
+
+        $connection->beginTransaction();
+        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Alice', 'a@example.com']);
+
+        $connection->beginTransaction();
+        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Bob', 'b@example.com']);
+        $connection->commit();                         // RELEASE SAVEPOINT
+
+        $connection->rollBack();                       // real ROLLBACK — everything gone
+
+        $count = $connection->fetchOne('SELECT COUNT(*) FROM users');
+        self::assertSame(0, (int) $count);
+    }
+
+    public function testNestedTransactionalCommitsBothLevels(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), nestTransactions: true);
+        $this->createUsersTableOn($connection);
+
+        $connection->transactional(function (Connection $conn): void {
+            $conn->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Alice', 'a@example.com']);
+
+            $conn->transactional(function (Connection $inner): void {
+                $inner->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Bob', 'b@example.com']);
+            });
+        });
+
+        $count = $connection->fetchOne('SELECT COUNT(*) FROM users');
+        self::assertSame(2, (int) $count);
+    }
+
+    public function testNestedTransactionalRollsBackInnerOnly(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), nestTransactions: true);
+        $this->createUsersTableOn($connection);
+
+        $connection->transactional(function (Connection $conn): void {
+            $conn->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Alice', 'a@example.com']);
+
+            try {
+                $conn->transactional(function (Connection $inner): never {
+                    $inner->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Bob', 'b@example.com']);
+                    throw new \RuntimeException('inner failure');
+                });
+            } catch (\RuntimeException) {
+                // swallow — only inner transaction should be rolled back
+            }
+        });
+
+        $rows = $connection->fetchAllAssociative('SELECT name FROM users');
+        self::assertCount(1, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
+    }
+
+    public function testGetTransactionNestingLevel(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), nestTransactions: true);
+        self::assertSame(0, $connection->getTransactionNestingLevel());
+
+        $connection->beginTransaction();
+        self::assertSame(1, $connection->getTransactionNestingLevel());
+
+        $connection->beginTransaction();
+        self::assertSame(2, $connection->getTransactionNestingLevel());
+
+        $connection->commit();
+        self::assertSame(1, $connection->getTransactionNestingLevel());
+
+        $connection->rollBack();
+        self::assertSame(0, $connection->getTransactionNestingLevel());
+    }
+
+    public function testGetTransactionNestingLevelIsZeroWithoutNesting(): void
+    {
+        self::assertSame(0, $this->connection->getTransactionNestingLevel());
+    }
+
+    public function testNestedCommitWithoutActiveTransactionThrows(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), nestTransactions: true);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('No active transaction.');
+
+        $connection->commit();
+    }
+
+    public function testNestedRollBackWithoutActiveTransactionThrows(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), nestTransactions: true);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('No active transaction.');
+
+        $connection->rollBack();
+    }
+
+    public function testTripleLevelNestedTransactions(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), nestTransactions: true);
+        $this->createUsersTableOn($connection);
+
+        $connection->beginTransaction();               // level 0 → 1
+        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Alice', 'a@example.com']);
+
+        $connection->beginTransaction();               // level 1 → 2
+        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Bob', 'b@example.com']);
+
+        $connection->beginTransaction();               // level 2 → 3
+        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Charlie', 'c@example.com']);
+        $connection->rollBack();                       // level 3 → 2 (Charlie reverted)
+
+        $connection->commit();                         // level 2 → 1 (Bob kept)
+        $connection->commit();                         // level 1 → 0 (real COMMIT)
+
+        $rows = $connection->fetchAllAssociative('SELECT name FROM users ORDER BY name');
+        self::assertCount(2, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
+        self::assertSame('Bob', $rows[1]['name']);
+    }
+
+    public function testDefaultBehaviorUnchangedWithoutNesting(): void
+    {
+        // Default connection (nestTransactions=false) works exactly as before
+        $this->createUsersTable();
+
+        $this->connection->beginTransaction();
+        $this->insertUser('Alice', 'alice@example.com');
+        $this->connection->commit();
+
+        self::assertSame('Alice', $this->connection->fetchOne('SELECT name FROM users'));
+    }
+
+    public function testCreateFactoryWithNestTransactions(): void
+    {
+        $connection = Connection::create('sqlite::memory:', nestTransactions: true);
+
+        $connection->beginTransaction();
+        $connection->beginTransaction();
+        self::assertSame(2, $connection->getTransactionNestingLevel());
+        $connection->commit();
+        $connection->commit();
+        self::assertSame(0, $connection->getTransactionNestingLevel());
+    }
+
     // -- helpers --
+
+    private function createUsersTableOn(Connection $connection): void
+    {
+        $connection->executeStatement(
+            'CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL)',
+        );
+    }
 
     private function createUsersTable(): void
     {
