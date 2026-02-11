@@ -10,10 +10,10 @@ use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
 use AsceticSoft\Rowcast\TypeCaster\TypeCasterInterface;
 use AsceticSoft\Rowcast\TypeCaster\TypeCasterRegistry;
 
-final class ReflectionHydrator implements HydratorInterface
+final readonly class ReflectionHydrator implements HydratorInterface
 {
-    private readonly TypeCasterInterface $typeCaster;
-    private readonly NameConverterInterface $nameConverter;
+    private TypeCasterInterface $typeCaster;
+    private NameConverterInterface $nameConverter;
 
     public function __construct(
         ?TypeCasterInterface $typeCaster = null,
@@ -57,7 +57,7 @@ final class ReflectionHydrator implements HydratorInterface
     private function hydrateWithRsm(\ReflectionClass $reflClass, object $object, array $row, ResultSetMapping $rsm): void
     {
         foreach ($rsm->getFields() as $columnName => $propertyName) {
-            if (!array_key_exists($columnName, $row)) {
+            if (!\array_key_exists($columnName, $row)) {
                 continue;
             }
 
@@ -78,7 +78,7 @@ final class ReflectionHydrator implements HydratorInterface
         foreach ($reflClass->getProperties() as $reflProperty) {
             $columnName = $this->nameConverter->toColumnName($reflProperty->getName());
 
-            if (!array_key_exists($columnName, $row)) {
+            if (!\array_key_exists($columnName, $row)) {
                 continue;
             }
 

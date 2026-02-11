@@ -40,11 +40,11 @@ final class DataMapperTest extends TestCase
 
         $id = $this->mapper->insert('simple_users', $user);
 
-        $this->assertSame('1', $id);
+        self::assertSame('1', $id);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM simple_users WHERE id = 1');
-        $this->assertSame('Alice', $row['name']);
-        $this->assertSame('alice@example.com', $row['email']);
+        self::assertSame('Alice', $row['name']);
+        self::assertSame('alice@example.com', $row['email']);
     }
 
     public function testInsertWithRsm(): void
@@ -61,11 +61,11 @@ final class DataMapperTest extends TestCase
 
         $id = $this->mapper->insert($rsm, $user);
 
-        $this->assertSame('1', $id);
+        self::assertSame('1', $id);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM simple_users WHERE id = 1');
-        $this->assertSame('Bob', $row['name']);
-        $this->assertSame('bob@example.com', $row['email']);
+        self::assertSame('Bob', $row['name']);
+        self::assertSame('bob@example.com', $row['email']);
     }
 
     public function testInsertSkipsUninitializedProperties(): void
@@ -79,7 +79,7 @@ final class DataMapperTest extends TestCase
 
         $id = $this->mapper->insert('simple_users', $user);
 
-        $this->assertSame('1', $id);
+        self::assertSame('1', $id);
     }
 
     public function testInsertMultipleReturnsIncrementingIds(): void
@@ -97,8 +97,8 @@ final class DataMapperTest extends TestCase
         $id1 = $this->mapper->insert('simple_users', $user1);
         $id2 = $this->mapper->insert('simple_users', $user2);
 
-        $this->assertSame('1', $id1);
-        $this->assertSame('2', $id2);
+        self::assertSame('1', $id1);
+        self::assertSame('2', $id2);
     }
 
     public function testInsertWithDateTimeConversion(): void
@@ -113,8 +113,8 @@ final class DataMapperTest extends TestCase
         $this->mapper->insert('user_with_dates', $user);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM user_with_dates WHERE id = 1');
-        $this->assertSame('2025-06-15 10:30:00', $row['created_at']);
-        $this->assertSame('2025-06-15 10:30:00', $row['updated_at']);
+        self::assertSame('2025-06-15 10:30:00', $row['created_at']);
+        self::assertSame('2025-06-15 10:30:00', $row['updated_at']);
     }
 
     public function testInsertWithEnumConversion(): void
@@ -128,8 +128,8 @@ final class DataMapperTest extends TestCase
         $this->mapper->insert('dto_with_enums', $dto);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM dto_with_enums WHERE id = 1');
-        $this->assertSame('active', $row['status']);
-        $this->assertNull($row['previous_status']);
+        self::assertSame('active', $row['status']);
+        self::assertNull($row['previous_status']);
     }
 
     public function testInsertWithRsmCustomColumnMapping(): void
@@ -153,8 +153,8 @@ final class DataMapperTest extends TestCase
         $this->mapper->insert($rsm, $user);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM custom_users WHERE id = 1');
-        $this->assertSame('Alice', $row['usr_nm']);
-        $this->assertSame('alice@example.com', $row['usr_email']);
+        self::assertSame('Alice', $row['usr_nm']);
+        self::assertSame('alice@example.com', $row['usr_email']);
     }
 
     public function testInsertThrowsWhenRsmHasNoTable(): void
@@ -186,11 +186,11 @@ final class DataMapperTest extends TestCase
 
         $affected = $this->mapper->update('simple_users', $user, ['id' => 1]);
 
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM simple_users WHERE id = 1');
-        $this->assertSame('Alice Updated', $row['name']);
-        $this->assertSame('alice-new@example.com', $row['email']);
+        self::assertSame('Alice Updated', $row['name']);
+        self::assertSame('alice-new@example.com', $row['email']);
     }
 
     public function testUpdateWithRsm(): void
@@ -208,10 +208,10 @@ final class DataMapperTest extends TestCase
 
         $affected = $this->mapper->update($rsm, $user, ['id' => 1]);
 
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM simple_users WHERE id = 1');
-        $this->assertSame('Alice via RSM', $row['name']);
+        self::assertSame('Alice via RSM', $row['name']);
     }
 
     public function testUpdateReturnsZeroWhenNoRowsMatch(): void
@@ -224,7 +224,7 @@ final class DataMapperTest extends TestCase
 
         $affected = $this->mapper->update('simple_users', $user, ['id' => 999]);
 
-        $this->assertSame(0, $affected);
+        self::assertSame(0, $affected);
     }
 
     public function testUpdateWithMultipleWhereConditions(): void
@@ -239,11 +239,11 @@ final class DataMapperTest extends TestCase
 
         $affected = $this->mapper->update('simple_users', $user, ['id' => 1, 'name' => 'Alice']);
 
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         // Bob should be unchanged
         $bob = $this->connection->fetchAssociative('SELECT * FROM simple_users WHERE id = 2');
-        $this->assertSame('Bob', $bob['name']);
+        self::assertSame('Bob', $bob['name']);
     }
 
     public function testUpdateThrowsWithEmptyWhere(): void
@@ -286,10 +286,10 @@ final class DataMapperTest extends TestCase
 
         $affected = $this->mapper->delete('simple_users', ['id' => 1]);
 
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         $count = $this->connection->fetchOne('SELECT COUNT(*) FROM simple_users');
-        $this->assertSame(1, (int) $count);
+        self::assertSame(1, (int) $count);
     }
 
     public function testDeleteWithRsm(): void
@@ -301,10 +301,10 @@ final class DataMapperTest extends TestCase
 
         $affected = $this->mapper->delete($rsm, ['id' => 1]);
 
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         $count = $this->connection->fetchOne('SELECT COUNT(*) FROM simple_users');
-        $this->assertSame(0, (int) $count);
+        self::assertSame(0, (int) $count);
     }
 
     public function testDeleteReturnsZeroWhenNoRowsMatch(): void
@@ -313,7 +313,7 @@ final class DataMapperTest extends TestCase
 
         $affected = $this->mapper->delete('simple_users', ['id' => 999]);
 
-        $this->assertSame(0, $affected);
+        self::assertSame(0, $affected);
     }
 
     public function testDeleteWithMultipleWhereConditions(): void
@@ -324,11 +324,11 @@ final class DataMapperTest extends TestCase
 
         $affected = $this->mapper->delete('simple_users', ['name' => 'Alice', 'email' => 'alice@example.com']);
 
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         // Bob should remain
         $bob = $this->connection->fetchAssociative('SELECT * FROM simple_users WHERE id = 2');
-        $this->assertSame('Bob', $bob['name']);
+        self::assertSame('Bob', $bob['name']);
     }
 
     public function testDeleteThrowsWithEmptyWhere(): void
@@ -363,10 +363,10 @@ final class DataMapperTest extends TestCase
 
         $users = $this->mapper->findAll(SimpleUser::class);
 
-        $this->assertCount(2, $users);
-        $this->assertInstanceOf(SimpleUser::class, $users[0]);
-        $this->assertSame('Alice', $users[0]->name);
-        $this->assertSame('Bob', $users[1]->name);
+        self::assertCount(2, $users);
+        self::assertInstanceOf(SimpleUser::class, $users[0]);
+        self::assertSame('Alice', $users[0]->name);
+        self::assertSame('Bob', $users[1]->name);
     }
 
     public function testFindAllWithRsm(): void
@@ -382,9 +382,9 @@ final class DataMapperTest extends TestCase
 
         $users = $this->mapper->findAll($rsm);
 
-        $this->assertCount(2, $users);
-        $this->assertSame('Alice', $users[0]->name);
-        $this->assertSame('alice@example.com', $users[0]->email);
+        self::assertCount(2, $users);
+        self::assertSame('Alice', $users[0]->name);
+        self::assertSame('alice@example.com', $users[0]->email);
     }
 
     public function testFindAllWithWhereConditions(): void
@@ -396,8 +396,8 @@ final class DataMapperTest extends TestCase
 
         $users = $this->mapper->findAll(SimpleUser::class, ['name' => 'Bob']);
 
-        $this->assertCount(1, $users);
-        $this->assertSame('Bob', $users[0]->name);
+        self::assertCount(1, $users);
+        self::assertSame('Bob', $users[0]->name);
     }
 
     public function testFindAllWithOrderBy(): void
@@ -412,10 +412,10 @@ final class DataMapperTest extends TestCase
             orderBy: ['name' => 'ASC'],
         );
 
-        $this->assertCount(3, $users);
-        $this->assertSame('Alice', $users[0]->name);
-        $this->assertSame('Bob', $users[1]->name);
-        $this->assertSame('Charlie', $users[2]->name);
+        self::assertCount(3, $users);
+        self::assertSame('Alice', $users[0]->name);
+        self::assertSame('Bob', $users[1]->name);
+        self::assertSame('Charlie', $users[2]->name);
     }
 
     public function testFindAllWithOrderByDesc(): void
@@ -430,9 +430,9 @@ final class DataMapperTest extends TestCase
             orderBy: ['name' => 'DESC'],
         );
 
-        $this->assertSame('Charlie', $users[0]->name);
-        $this->assertSame('Bob', $users[1]->name);
-        $this->assertSame('Alice', $users[2]->name);
+        self::assertSame('Charlie', $users[0]->name);
+        self::assertSame('Bob', $users[1]->name);
+        self::assertSame('Alice', $users[2]->name);
     }
 
     public function testFindAllWithLimit(): void
@@ -448,9 +448,9 @@ final class DataMapperTest extends TestCase
             limit: 2,
         );
 
-        $this->assertCount(2, $users);
-        $this->assertSame('Alice', $users[0]->name);
-        $this->assertSame('Bob', $users[1]->name);
+        self::assertCount(2, $users);
+        self::assertSame('Alice', $users[0]->name);
+        self::assertSame('Bob', $users[1]->name);
     }
 
     public function testFindAllWithLimitAndOffset(): void
@@ -467,9 +467,9 @@ final class DataMapperTest extends TestCase
             offset: 1,
         );
 
-        $this->assertCount(2, $users);
-        $this->assertSame('Bob', $users[0]->name);
-        $this->assertSame('Charlie', $users[1]->name);
+        self::assertCount(2, $users);
+        self::assertSame('Bob', $users[0]->name);
+        self::assertSame('Charlie', $users[1]->name);
     }
 
     public function testFindAllReturnsEmptyArrayWhenNoMatches(): void
@@ -478,7 +478,7 @@ final class DataMapperTest extends TestCase
 
         $users = $this->mapper->findAll(SimpleUser::class, ['name' => 'Nobody']);
 
-        $this->assertSame([], $users);
+        self::assertSame([], $users);
     }
 
     public function testFindAllWithDateTimeHydration(): void
@@ -496,10 +496,10 @@ final class DataMapperTest extends TestCase
 
         $users = $this->mapper->findAll($rsm);
 
-        $this->assertCount(1, $users);
-        $this->assertInstanceOf(UserWithDates::class, $users[0]);
-        $this->assertInstanceOf(\DateTimeImmutable::class, $users[0]->createdAt);
-        $this->assertSame('2025-06-15 10:30:00', $users[0]->createdAt->format('Y-m-d H:i:s'));
+        self::assertCount(1, $users);
+        self::assertInstanceOf(UserWithDates::class, $users[0]);
+        self::assertInstanceOf(\DateTimeImmutable::class, $users[0]->createdAt);
+        self::assertSame('2025-06-15 10:30:00', $users[0]->createdAt->format('Y-m-d H:i:s'));
     }
 
     public function testFindAllWithEnumHydration(): void
@@ -511,9 +511,9 @@ final class DataMapperTest extends TestCase
 
         $dtos = $this->mapper->findAll(DtoWithEnum::class);
 
-        $this->assertCount(1, $dtos);
-        $this->assertSame(UserStatus::Active, $dtos[0]->status);
-        $this->assertSame(UserStatus::Inactive, $dtos[0]->previousStatus);
+        self::assertCount(1, $dtos);
+        self::assertSame(UserStatus::Active, $dtos[0]->status);
+        self::assertSame(UserStatus::Inactive, $dtos[0]->previousStatus);
     }
 
     public function testFindAllThrowsWhenRsmHasNoTable(): void
@@ -537,10 +537,10 @@ final class DataMapperTest extends TestCase
 
         $user = $this->mapper->findOne(SimpleUser::class, ['id' => 1]);
 
-        $this->assertInstanceOf(SimpleUser::class, $user);
-        $this->assertSame(1, $user->id);
-        $this->assertSame('Alice', $user->name);
-        $this->assertSame('alice@example.com', $user->email);
+        self::assertInstanceOf(SimpleUser::class, $user);
+        self::assertSame(1, $user->id);
+        self::assertSame('Alice', $user->name);
+        self::assertSame('alice@example.com', $user->email);
     }
 
     public function testFindOneWithRsm(): void
@@ -555,8 +555,8 @@ final class DataMapperTest extends TestCase
 
         $user = $this->mapper->findOne($rsm, ['id' => 1]);
 
-        $this->assertInstanceOf(SimpleUser::class, $user);
-        $this->assertSame('Alice', $user->name);
+        self::assertInstanceOf(SimpleUser::class, $user);
+        self::assertSame('Alice', $user->name);
     }
 
     public function testFindOneReturnsNullWhenNoMatch(): void
@@ -565,7 +565,7 @@ final class DataMapperTest extends TestCase
 
         $user = $this->mapper->findOne(SimpleUser::class, ['id' => 999]);
 
-        $this->assertNull($user);
+        self::assertNull($user);
     }
 
     public function testFindOneReturnsFirstMatch(): void
@@ -576,9 +576,9 @@ final class DataMapperTest extends TestCase
 
         $user = $this->mapper->findOne(SimpleUser::class);
 
-        $this->assertInstanceOf(SimpleUser::class, $user);
+        self::assertInstanceOf(SimpleUser::class, $user);
         // Should return the first row (no ordering specified, but only one is returned)
-        $this->assertNotNull($user->name);
+        self::assertNotNull($user->name);
     }
 
     public function testFindOneThrowsWhenRsmHasNoTable(): void
@@ -605,34 +605,34 @@ final class DataMapperTest extends TestCase
         $user->email = 'alice@example.com';
 
         $id = $this->mapper->insert('simple_users', $user);
-        $this->assertSame('1', $id);
+        self::assertSame('1', $id);
 
         // FIND ONE
         $found = $this->mapper->findOne(SimpleUser::class, ['id' => 1]);
-        $this->assertInstanceOf(SimpleUser::class, $found);
-        $this->assertSame(1, $found->id);
-        $this->assertSame('Alice', $found->name);
-        $this->assertSame('alice@example.com', $found->email);
+        self::assertInstanceOf(SimpleUser::class, $found);
+        self::assertSame(1, $found->id);
+        self::assertSame('Alice', $found->name);
+        self::assertSame('alice@example.com', $found->email);
 
         // UPDATE
         $found->name = 'Alice Updated';
         $found->email = 'alice-updated@example.com';
 
         $affected = $this->mapper->update('simple_users', $found, ['id' => $found->id]);
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         // FIND ONE after update
         $updated = $this->mapper->findOne(SimpleUser::class, ['id' => 1]);
-        $this->assertSame('Alice Updated', $updated->name);
-        $this->assertSame('alice-updated@example.com', $updated->email);
+        self::assertSame('Alice Updated', $updated->name);
+        self::assertSame('alice-updated@example.com', $updated->email);
 
         // DELETE
         $affected = $this->mapper->delete('simple_users', ['id' => 1]);
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         // Verify deletion
         $deleted = $this->mapper->findOne(SimpleUser::class, ['id' => 1]);
-        $this->assertNull($deleted);
+        self::assertNull($deleted);
     }
 
     public function testFullCrudRoundTripWithRsm(): void
@@ -656,28 +656,28 @@ final class DataMapperTest extends TestCase
         $user->email = 'bob@example.com';
 
         $id = $this->mapper->insert($rsm, $user);
-        $this->assertSame('1', $id);
+        self::assertSame('1', $id);
 
         // FIND ONE via RSM
         $found = $this->mapper->findOne($rsm, ['id' => 1]);
-        $this->assertInstanceOf(SimpleUser::class, $found);
-        $this->assertSame('Bob', $found->name);
-        $this->assertSame('bob@example.com', $found->email);
+        self::assertInstanceOf(SimpleUser::class, $found);
+        self::assertSame('Bob', $found->name);
+        self::assertSame('bob@example.com', $found->email);
 
         // UPDATE via RSM
         $found->name = 'Bob Updated';
         $affected = $this->mapper->update($rsm, $found, ['id' => 1]);
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         // Verify update via RSM
         $updated = $this->mapper->findOne($rsm, ['id' => 1]);
-        $this->assertSame('Bob Updated', $updated->name);
+        self::assertSame('Bob Updated', $updated->name);
 
         // DELETE via RSM
         $affected = $this->mapper->delete($rsm, ['id' => 1]);
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
-        $this->assertNull($this->mapper->findOne($rsm, ['id' => 1]));
+        self::assertNull($this->mapper->findOne($rsm, ['id' => 1]));
     }
 
     // -----------------------------------------------------------------------
@@ -697,8 +697,8 @@ final class DataMapperTest extends TestCase
         $this->mapper->insert('user_with_dates', $user);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM user_with_dates WHERE id = 1');
-        $this->assertSame('2025-01-01 00:00:00', $row['created_at']);
-        $this->assertSame('2025-01-02 00:00:00', $row['updated_at']);
+        self::assertSame('2025-01-01 00:00:00', $row['created_at']);
+        self::assertSame('2025-01-02 00:00:00', $row['updated_at']);
 
         // Reading back with RSM should also work
         $rsm = new ResultSetMapping(UserWithDates::class, table: 'user_with_dates');
@@ -708,7 +708,7 @@ final class DataMapperTest extends TestCase
             ->addField('updated_at', 'updatedAt');
 
         $found = $this->mapper->findOne($rsm, ['id' => 1]);
-        $this->assertSame('2025-01-01 00:00:00', $found->createdAt->format('Y-m-d H:i:s'));
+        self::assertSame('2025-01-01 00:00:00', $found->createdAt->format('Y-m-d H:i:s'));
     }
 
     public function testCustomNameConverter(): void
@@ -731,7 +731,7 @@ final class DataMapperTest extends TestCase
         $mapper->insert('nullconv', $user);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM nullconv WHERE id = 1');
-        $this->assertSame('Alice', $row['name']);
+        self::assertSame('Alice', $row['name']);
     }
 
     // -----------------------------------------------------------------------
@@ -747,8 +747,8 @@ final class DataMapperTest extends TestCase
 
         $users = $this->mapper->findAll(SimpleUser::class);
 
-        $this->assertCount(1, $users);
-        $this->assertSame('Alice', $users[0]->name);
+        self::assertCount(1, $users);
+        self::assertSame('Alice', $users[0]->name);
     }
 
     // -----------------------------------------------------------------------
@@ -757,7 +757,7 @@ final class DataMapperTest extends TestCase
 
     public function testGetConnectionReturnsSameInstance(): void
     {
-        $this->assertSame($this->connection, $this->mapper->getConnection());
+        self::assertSame($this->connection, $this->mapper->getConnection());
     }
 
     // -----------------------------------------------------------------------
@@ -801,7 +801,7 @@ final class DataMapperTest extends TestCase
         );
 
         // Create a DTO with boolean property
-        $dto = new class {
+        $dto = new class () {
             public string $name = 'Alice';
             public bool $isActive = true;
         };
@@ -809,8 +809,8 @@ final class DataMapperTest extends TestCase
         $this->mapper->insert('bool_test', $dto);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM bool_test WHERE id = 1');
-        $this->assertSame(1, (int) $row['is_active']);
-        $this->assertSame('Alice', $row['name']);
+        self::assertSame(1, (int) $row['is_active']);
+        self::assertSame('Alice', $row['name']);
     }
 
     public function testInsertWithBoolFalseConversion(): void
@@ -823,7 +823,7 @@ final class DataMapperTest extends TestCase
             )',
         );
 
-        $dto = new class {
+        $dto = new class () {
             public string $name = 'Bob';
             public bool $isActive = false;
         };
@@ -831,7 +831,7 @@ final class DataMapperTest extends TestCase
         $this->mapper->insert('bool_test2', $dto);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM bool_test2 WHERE id = 1');
-        $this->assertSame(0, (int) $row['is_active']);
+        self::assertSame(0, (int) $row['is_active']);
     }
 
     public function testInsertWithNullValue(): void
@@ -845,8 +845,8 @@ final class DataMapperTest extends TestCase
         $this->mapper->insert('dto_with_enums', $dto);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM dto_with_enums WHERE id = 1');
-        $this->assertSame('active', $row['status']);
-        $this->assertNull($row['previous_status']);
+        self::assertSame('active', $row['status']);
+        self::assertNull($row['previous_status']);
     }
 
     public function testUpdateWithDateTimeConversion(): void
@@ -863,11 +863,11 @@ final class DataMapperTest extends TestCase
 
         $affected = $this->mapper->update('user_with_dates', $user, ['id' => 1]);
 
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM user_with_dates WHERE id = 1');
-        $this->assertSame('2025-06-15 12:00:00', $row['created_at']);
-        $this->assertSame('2025-06-16 08:30:00', $row['updated_at']);
+        self::assertSame('2025-06-15 12:00:00', $row['created_at']);
+        self::assertSame('2025-06-16 08:30:00', $row['updated_at']);
     }
 
     public function testUpdateWithEnumConversion(): void
@@ -883,11 +883,11 @@ final class DataMapperTest extends TestCase
 
         $affected = $this->mapper->update('dto_with_enums', $dto, ['id' => 1]);
 
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM dto_with_enums WHERE id = 1');
-        $this->assertSame('banned', $row['status']);
-        $this->assertSame('active', $row['previous_status']);
+        self::assertSame('banned', $row['status']);
+        self::assertSame('active', $row['previous_status']);
     }
 
     public function testDeleteMultipleRows(): void
@@ -902,11 +902,11 @@ final class DataMapperTest extends TestCase
         $affected1 = $this->mapper->delete('simple_users', ['name' => 'Alice']);
         $affected2 = $this->mapper->delete('simple_users', ['name' => 'Bob']);
 
-        $this->assertSame(1, $affected1);
-        $this->assertSame(1, $affected2);
+        self::assertSame(1, $affected1);
+        self::assertSame(1, $affected2);
 
         $count = $this->connection->fetchOne('SELECT COUNT(*) FROM simple_users');
-        $this->assertSame(1, (int) $count);
+        self::assertSame(1, (int) $count);
     }
 
     // -----------------------------------------------------------------------
@@ -925,8 +925,8 @@ final class DataMapperTest extends TestCase
             'email' => 'alice@example.com',
         ]);
 
-        $this->assertCount(1, $users);
-        $this->assertSame('alice@example.com', $users[0]->email);
+        self::assertCount(1, $users);
+        self::assertSame('alice@example.com', $users[0]->email);
     }
 
     public function testFindOneWithMultipleWhereConditions(): void
@@ -940,8 +940,8 @@ final class DataMapperTest extends TestCase
             'email' => 'alice2@example.com',
         ]);
 
-        $this->assertInstanceOf(SimpleUser::class, $user);
-        $this->assertSame('alice2@example.com', $user->email);
+        self::assertInstanceOf(SimpleUser::class, $user);
+        self::assertSame('alice2@example.com', $user->email);
     }
 
     public function testFindAllWithEmptyTable(): void
@@ -950,7 +950,7 @@ final class DataMapperTest extends TestCase
 
         $users = $this->mapper->findAll(SimpleUser::class);
 
-        $this->assertSame([], $users);
+        self::assertSame([], $users);
     }
 
     public function testFindOneWithEmptyTable(): void
@@ -959,7 +959,7 @@ final class DataMapperTest extends TestCase
 
         $user = $this->mapper->findOne(SimpleUser::class);
 
-        $this->assertNull($user);
+        self::assertNull($user);
     }
 
     public function testFindAllWithNullableEnumHydration(): void
@@ -971,9 +971,9 @@ final class DataMapperTest extends TestCase
 
         $dtos = $this->mapper->findAll(DtoWithEnum::class);
 
-        $this->assertCount(1, $dtos);
-        $this->assertSame(UserStatus::Active, $dtos[0]->status);
-        $this->assertNull($dtos[0]->previousStatus);
+        self::assertCount(1, $dtos);
+        self::assertSame(UserStatus::Active, $dtos[0]->status);
+        self::assertNull($dtos[0]->previousStatus);
     }
 
     // -----------------------------------------------------------------------
@@ -994,9 +994,9 @@ final class DataMapperTest extends TestCase
         // findOne uses auto-derivation: SimpleUser → simple_users
         $found = $this->mapper->findOne(SimpleUser::class, ['name' => 'Derived']);
 
-        $this->assertInstanceOf(SimpleUser::class, $found);
-        $this->assertSame('Derived', $found->name);
-        $this->assertSame('derived@example.com', $found->email);
+        self::assertInstanceOf(SimpleUser::class, $found);
+        self::assertSame('Derived', $found->name);
+        self::assertSame('derived@example.com', $found->email);
     }
 
     // -----------------------------------------------------------------------

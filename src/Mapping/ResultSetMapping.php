@@ -123,6 +123,6 @@ final class ResultSetMapping
      */
     public function hasProperty(string $propertyName): bool
     {
-        return in_array($propertyName, $this->fields, true);
+        return \in_array($propertyName, $this->fields, true);
     }
 }

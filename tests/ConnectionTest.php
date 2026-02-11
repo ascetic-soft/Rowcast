@@ -24,7 +24,7 @@ final class ConnectionTest extends TestCase
 
         new Connection($pdo);
 
-        $this->assertSame(
+        static::assertSame(
             \PDO::ERRMODE_EXCEPTION,
             $pdo->getAttribute(\PDO::ATTR_ERRMODE),
         );
@@ -34,14 +34,14 @@ final class ConnectionTest extends TestCase
     {
         $connection = Connection::create('sqlite::memory:');
 
-        $this->assertInstanceOf(Connection::class, $connection);
+        self::assertInstanceOf(Connection::class, $connection);
     }
 
     public function testCreateFactorySetsFetchModeAssoc(): void
     {
         $connection = Connection::create('sqlite::memory:');
 
-        $this->assertSame(
+        self::assertSame(
             \PDO::FETCH_ASSOC,
             $connection->getPdo()->getAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE),
         );
@@ -52,14 +52,14 @@ final class ConnectionTest extends TestCase
         $pdo = new \PDO('sqlite::memory:');
         $connection = new Connection($pdo);
 
-        $this->assertSame($pdo, $connection->getPdo());
+        static::assertSame($pdo, $connection->getPdo());
     }
 
     public function testCreateQueryBuilderReturnsQueryBuilder(): void
     {
         $qb = $this->connection->createQueryBuilder();
 
-        $this->assertInstanceOf(QueryBuilder::class, $qb);
+        static::assertInstanceOf(QueryBuilder::class, $qb);
     }
 
     public function testCreateQueryBuilderReturnsNewInstanceEachTime(): void
@@ -67,14 +67,14 @@ final class ConnectionTest extends TestCase
         $qb1 = $this->connection->createQueryBuilder();
         $qb2 = $this->connection->createQueryBuilder();
 
-        $this->assertNotSame($qb1, $qb2);
+        static::assertNotSame($qb1, $qb2);
     }
 
     public function testCreateQueryBuilderBindsConnection(): void
     {
         $qb = $this->connection->createQueryBuilder();
 
-        $this->assertSame($this->connection, $qb->getConnection());
+        static::assertSame($this->connection, $qb->getConnection());
     }
 
     // -- executeQuery / executeStatement --
@@ -90,7 +90,7 @@ final class ConnectionTest extends TestCase
         );
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        $this->assertSame('Alice', $row['name']);
+        static::assertSame('Alice', $row['name']);
     }
 
     public function testExecuteQueryWithNamedParams(): void
@@ -104,7 +104,7 @@ final class ConnectionTest extends TestCase
         );
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        $this->assertSame('Alice', $row['name']);
+        static::assertSame('Alice', $row['name']);
     }
 
     public function testExecuteStatementReturnsAffectedRows(): void
@@ -118,7 +118,7 @@ final class ConnectionTest extends TestCase
             ['Updated', 'alice@example.com'],
         );
 
-        $this->assertSame(1, $affected);
+        static::assertSame(1, $affected);
     }
 
     // -- fetch helpers --
@@ -131,9 +131,9 @@ final class ConnectionTest extends TestCase
 
         $rows = $this->connection->fetchAllAssociative('SELECT name FROM users ORDER BY name');
 
-        $this->assertCount(2, $rows);
-        $this->assertSame('Alice', $rows[0]['name']);
-        $this->assertSame('Bob', $rows[1]['name']);
+        static::assertCount(2, $rows);
+        static::assertSame('Alice', $rows[0]['name']);
+        static::assertSame('Bob', $rows[1]['name']);
     }
 
     public function testFetchAllAssociativeEmpty(): void
@@ -142,7 +142,7 @@ final class ConnectionTest extends TestCase
 
         $rows = $this->connection->fetchAllAssociative('SELECT * FROM users');
 
-        $this->assertSame([], $rows);
+        static::assertSame([], $rows);
     }
 
     public function testFetchAssociative(): void
@@ -155,7 +155,7 @@ final class ConnectionTest extends TestCase
             ['Alice'],
         );
 
-        $this->assertSame(['name' => 'Alice', 'email' => 'alice@example.com'], $row);
+        static::assertSame(['name' => 'Alice', 'email' => 'alice@example.com'], $row);
     }
 
     public function testFetchAssociativeReturnsFalseWhenNoRows(): void
@@ -167,7 +167,7 @@ final class ConnectionTest extends TestCase
             ['Nobody'],
         );
 
-        $this->assertFalse($row);
+        self::assertFalse($row);
     }
 
     public function testFetchOne(): void
@@ -180,7 +180,7 @@ final class ConnectionTest extends TestCase
             ['alice@example.com'],
         );
 
-        $this->assertSame('Alice', $name);
+        self::assertSame('Alice', $name);
     }
 
     public function testFetchOneReturnsFalseWhenNoRows(): void
@@ -192,7 +192,7 @@ final class ConnectionTest extends TestCase
             ['nobody@example.com'],
         );
 
-        $this->assertFalse($result);
+        self::assertFalse($result);
     }
 
     // -- lastInsertId --
@@ -204,8 +204,8 @@ final class ConnectionTest extends TestCase
 
         $id = $this->connection->lastInsertId();
 
-        $this->assertNotFalse($id);
-        $this->assertSame('1', $id);
+        self::assertNotFalse($id);
+        self::assertSame('1', $id);
     }
 
     public function testLastInsertIdIncrementsAfterSecondInsert(): void
@@ -216,7 +216,7 @@ final class ConnectionTest extends TestCase
 
         $id = $this->connection->lastInsertId();
 
-        $this->assertSame('2', $id);
+        self::assertSame('2', $id);
     }
 
     // -- transactions --
@@ -229,7 +229,7 @@ final class ConnectionTest extends TestCase
         $this->insertUser('Alice', 'alice@example.com');
         $this->connection->commit();
 
-        $this->assertSame('Alice', $this->connection->fetchOne('SELECT name FROM users'));
+        self::assertSame('Alice', $this->connection->fetchOne('SELECT name FROM users'));
     }
 
     public function testBeginTransactionAndRollBack(): void
@@ -241,7 +241,7 @@ final class ConnectionTest extends TestCase
         $this->connection->rollBack();
 
         $count = $this->connection->fetchOne('SELECT COUNT(*) FROM users');
-        $this->assertSame(0, (int) $count);
+        self::assertSame(0, (int) $count);
     }
 
     public function testTransactionalCommitsOnSuccess(): void
@@ -257,8 +257,8 @@ final class ConnectionTest extends TestCase
             return 'done';
         });
 
-        $this->assertSame('done', $result);
-        $this->assertSame('Alice', $this->connection->fetchOne('SELECT name FROM users'));
+        self::assertSame('done', $result);
+        self::assertSame('Alice', $this->connection->fetchOne('SELECT name FROM users'));
     }
 
     public function testTransactionalRollsBackOnException(): void
@@ -274,13 +274,13 @@ final class ConnectionTest extends TestCase
 
                 throw new \RuntimeException('Something went wrong');
             });
-            $this->fail('Expected RuntimeException was not thrown');
+            self::fail('Expected RuntimeException was not thrown');
         } catch (\RuntimeException $e) {
-            $this->assertSame('Something went wrong', $e->getMessage());
+            self::assertSame('Something went wrong', $e->getMessage());
         }
 
         $count = $this->connection->fetchOne('SELECT COUNT(*) FROM users');
-        $this->assertSame(0, (int) $count);
+        self::assertSame(0, (int) $count);
     }
 
     public function testTransactionalRethrowsException(): void
@@ -304,7 +304,7 @@ final class ConnectionTest extends TestCase
         ]);
 
         // Custom option should override the default
-        $this->assertSame(
+        self::assertSame(
             \PDO::FETCH_NUM,
             $connection->getPdo()->getAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE),
         );
@@ -314,7 +314,7 @@ final class ConnectionTest extends TestCase
     {
         $connection = Connection::create('sqlite::memory:');
 
-        $this->assertSame(
+        static::assertSame(
             \PDO::ERRMODE_EXCEPTION,
             $connection->getPdo()->getAttribute(\PDO::ATTR_ERRMODE),
         );
@@ -330,7 +330,7 @@ final class ConnectionTest extends TestCase
         $stmt = $this->connection->executeQuery('SELECT name FROM users');
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        $this->assertSame('Alice', $row['name']);
+        self::assertSame('Alice', $row['name']);
     }
 
     // -- executeStatement returns zero for no matches --
@@ -344,7 +344,7 @@ final class ConnectionTest extends TestCase
             ['Nobody', 999],
         );
 
-        $this->assertSame(0, $affected);
+        self::assertSame(0, $affected);
     }
 
     // -- fetchAllAssociative with params --
@@ -360,8 +360,8 @@ final class ConnectionTest extends TestCase
             ['Alice'],
         );
 
-        $this->assertCount(1, $rows);
-        $this->assertSame('Alice', $rows[0]['name']);
+        self::assertCount(1, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
     }
 
     public function testFetchAllAssociativeWithNamedParams(): void
@@ -375,8 +375,8 @@ final class ConnectionTest extends TestCase
             ['email' => 'bob@example.com'],
         );
 
-        $this->assertCount(1, $rows);
-        $this->assertSame('Bob', $rows[0]['name']);
+        self::assertCount(1, $rows);
+        self::assertSame('Bob', $rows[0]['name']);
     }
 
     // -- fetchOne with scalar values --
@@ -389,7 +389,7 @@ final class ConnectionTest extends TestCase
 
         $count = $this->connection->fetchOne('SELECT COUNT(*) FROM users');
 
-        $this->assertSame(2, (int) $count);
+        self::assertSame(2, (int) $count);
     }
 
     // -- transactional nesting ---
@@ -398,11 +398,9 @@ final class ConnectionTest extends TestCase
     {
         $this->createUsersTable();
 
-        $result = $this->connection->transactional(function (): int {
-            return 42;
-        });
+        $result = $this->connection->transactional(fn (): int => 42);
 
-        $this->assertSame(42, $result);
+        self::assertSame(42, $result);
     }
 
     public function testTransactionalWithNullReturn(): void
@@ -416,8 +414,8 @@ final class ConnectionTest extends TestCase
             );
         });
 
-        $this->assertNull($result);
-        $this->assertSame('Alice', $this->connection->fetchOne('SELECT name FROM users'));
+        self::assertNull($result);
+        self::assertSame('Alice', $this->connection->fetchOne('SELECT name FROM users'));
     }
 
     // -- Multiple operations in sequence --
@@ -432,9 +430,9 @@ final class ConnectionTest extends TestCase
 
         $rows = $this->connection->fetchAllAssociative('SELECT * FROM users ORDER BY id');
 
-        $this->assertCount(5, $rows);
-        $this->assertSame('User1', $rows[0]['name']);
-        $this->assertSame('User5', $rows[4]['name']);
+        self::assertCount(5, $rows);
+        self::assertSame('User1', $rows[0]['name']);
+        self::assertSame('User5', $rows[4]['name']);
     }
 
     // -- Prepared statement reuse --
@@ -448,8 +446,8 @@ final class ConnectionTest extends TestCase
         $name1 = $this->connection->fetchOne('SELECT name FROM users WHERE id = ?', [1]);
         $name2 = $this->connection->fetchOne('SELECT name FROM users WHERE id = ?', [2]);
 
-        $this->assertSame('Alice', $name1);
-        $this->assertSame('Bob', $name2);
+        self::assertSame('Alice', $name1);
+        self::assertSame('Bob', $name2);
     }
 
     // -- helpers --

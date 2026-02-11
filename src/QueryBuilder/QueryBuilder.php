@@ -157,7 +157,7 @@ class QueryBuilder
      */
     public function groupBy(string|array $groupBy): self
     {
-        $this->groupBy = is_array($groupBy) ? $groupBy : [$groupBy];
+        $this->groupBy = \is_array($groupBy) ? $groupBy : [$groupBy];
 
         return $this;
     }
@@ -255,9 +255,6 @@ class QueryBuilder
 
     // --- Parameters ---
 
-    /**
-     * @param string|int $key
-     */
     public function setParameter(string|int $key, mixed $value): self
     {
         $this->parameters[$key] = $value;
@@ -376,7 +373,7 @@ class QueryBuilder
             if ($driver === 'sqlite' || $driver === 'mysql' || $driver === 'pgsql') {
                 $sql .= ' LIMIT ' . (int) $limit;
                 if ($offset > 0) {
-                    $sql .= ' OFFSET ' . (int) $offset;
+                    $sql .= ' OFFSET ' . $offset;
                 }
             }
         }

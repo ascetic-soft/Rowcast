@@ -152,7 +152,7 @@ final class TypeCasterRegistryTest extends TestCase
 
     public function testCustomCasterTakesPrecedenceWhenAddedFirst(): void
     {
-        $custom = new class implements TypeCasterInterface {
+        $custom = new class () implements TypeCasterInterface {
             public function supports(string $type): bool
             {
                 return $type === 'int';

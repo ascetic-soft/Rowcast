@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AsceticSoft\Rowcast\Tests\TypeCaster;
 
 use DateTimeImmutable;
+use DateTimeInterface;
 use DateTime;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -37,6 +38,7 @@ final class DateTimeTypeCasterTest extends TestCase
     public static function supportedTypesProvider(): iterable
     {
         yield 'DateTimeImmutable' => [DateTimeImmutable::class];
+        yield 'DateTimeInterface' => [DateTimeInterface::class];
         yield 'DateTime' => [DateTime::class];
     }
 
@@ -54,7 +56,6 @@ final class DateTimeTypeCasterTest extends TestCase
         yield 'string' => ['string'];
         yield 'int' => ['int'];
         yield 'stdClass' => [\stdClass::class];
-        yield 'DateTimeInterface' => [\DateTimeInterface::class];
     }
 
     public function testCastStringToDateTimeImmutable(): void
@@ -103,6 +104,31 @@ final class DateTimeTypeCasterTest extends TestCase
         $result = $this->caster->cast($original, DateTime::class);
 
         self::assertSame($original, $result);
+    }
+
+    public function testCastStringToDateTimeInterface(): void
+    {
+        $result = $this->caster->cast('2025-06-15 10:30:00', DateTimeInterface::class);
+
+        self::assertInstanceOf(DateTimeImmutable::class, $result);
+        self::assertSame('2025-06-15 10:30:00', $result->format('Y-m-d H:i:s'));
+    }
+
+    public function testCastDateTimeInterfaceReturnsExistingDateTimeImmutableAsIs(): void
+    {
+        $original = new DateTimeImmutable('2025-06-15');
+        $result = $this->caster->cast($original, DateTimeInterface::class);
+
+        self::assertSame($original, $result);
+    }
+
+    public function testCastDateTimeInterfaceConvertsMutableToImmutable(): void
+    {
+        $original = new DateTime('2025-06-15');
+        $result = $this->caster->cast($original, DateTimeInterface::class);
+
+        self::assertInstanceOf(DateTimeImmutable::class, $result);
+        self::assertSame('2025-06-15', $result->format('Y-m-d'));
     }
 
     public function testCastInvalidStringThrowsException(): void

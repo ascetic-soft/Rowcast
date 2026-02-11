@@ -59,9 +59,9 @@ final class QueryBuilderTest extends TestCase
             ->from('users')
             ->fetchAllAssociative();
 
-        $this->assertCount(1, $rows);
-        $this->assertSame(1, (int) $rows[0]['id']);
-        $this->assertSame('Alice', $rows[0]['name']);
+        self::assertCount(1, $rows);
+        self::assertSame(1, (int) $rows[0]['id']);
+        self::assertSame('Alice', $rows[0]['name']);
     }
 
     public function testSelectFromWithAlias(): void
@@ -74,9 +74,9 @@ final class QueryBuilderTest extends TestCase
             ->from('users', 'u')
             ->fetchAllAssociative();
 
-        $this->assertCount(1, $rows);
-        $this->assertSame(1, (int) $rows[0]['id']);
-        $this->assertSame('Alice', $rows[0]['name']);
+        self::assertCount(1, $rows);
+        self::assertSame(1, (int) $rows[0]['id']);
+        self::assertSame('Alice', $rows[0]['name']);
     }
 
     public function testSelectWithWhereAndParameters(): void
@@ -92,8 +92,8 @@ final class QueryBuilderTest extends TestCase
             ->setParameter('email', 'alice@example.com')
             ->fetchAllAssociative();
 
-        $this->assertCount(1, $rows);
-        $this->assertSame(['name' => 'Alice', 'email' => 'alice@example.com'], $rows[0]);
+        self::assertCount(1, $rows);
+        self::assertSame(['name' => 'Alice', 'email' => 'alice@example.com'], $rows[0]);
     }
 
     public function testSelectWithAndWhere(): void
@@ -111,7 +111,7 @@ final class QueryBuilderTest extends TestCase
             ->setParameter('email', 'alice@example.com')
             ->fetchAssociative();
 
-        $this->assertSame(['name' => 'Alice'], $row);
+        self::assertSame(['name' => 'Alice'], $row);
     }
 
     public function testSelectWithLeftJoin(): void
@@ -131,11 +131,11 @@ final class QueryBuilderTest extends TestCase
             ->setParameter('id', 1)
             ->fetchAllAssociative();
 
-        $this->assertCount(2, $rows);
-        $this->assertSame('Alice', $rows[0]['name']);
-        $this->assertEqualsWithDelta(100.5, (float) $rows[0]['total'], 0.001);
-        $this->assertSame('Alice', $rows[1]['name']);
-        $this->assertEqualsWithDelta(50.25, (float) $rows[1]['total'], 0.001);
+        self::assertCount(2, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
+        self::assertEqualsWithDelta(100.5, (float) $rows[0]['total'], 0.001);
+        self::assertSame('Alice', $rows[1]['name']);
+        self::assertEqualsWithDelta(50.25, (float) $rows[1]['total'], 0.001);
     }
 
     public function testSelectWithOrderByAndLimit(): void
@@ -152,9 +152,9 @@ final class QueryBuilderTest extends TestCase
             ->setMaxResults(2)
             ->fetchAllAssociative();
 
-        $this->assertCount(2, $rows);
-        $this->assertSame('Alice', $rows[0]['name']);
-        $this->assertSame('Bob', $rows[1]['name']);
+        self::assertCount(2, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
+        self::assertSame('Bob', $rows[1]['name']);
     }
 
     public function testSelectWithOrderByAndOffset(): void
@@ -172,8 +172,8 @@ final class QueryBuilderTest extends TestCase
             ->setMaxResults(1)
             ->fetchAllAssociative();
 
-        $this->assertCount(1, $rows);
-        $this->assertSame('Bob', $rows[0]['name']);
+        self::assertCount(1, $rows);
+        self::assertSame('Bob', $rows[0]['name']);
     }
 
     public function testSelectWithAddSelect(): void
@@ -187,9 +187,9 @@ final class QueryBuilderTest extends TestCase
             ->from('users')
             ->fetchAssociative();
 
-        $this->assertSame(1, (int) $row['id']);
-        $this->assertSame('Alice', $row['name']);
-        $this->assertSame('alice@example.com', $row['email']);
+        self::assertSame(1, (int) $row['id']);
+        self::assertSame('Alice', $row['name']);
+        self::assertSame('alice@example.com', $row['email']);
     }
 
     public function testSelectWithGroupBy(): void
@@ -210,11 +210,11 @@ final class QueryBuilderTest extends TestCase
             ->orderBy('total', 'DESC')
             ->fetchAllAssociative();
 
-        $this->assertCount(2, $rows);
-        $this->assertSame('Alice', $rows[0]['name']);
-        $this->assertEqualsWithDelta(150.0, (float) $rows[0]['total'], 0.001);
-        $this->assertSame('Bob', $rows[1]['name']);
-        $this->assertEqualsWithDelta(75.0, (float) $rows[1]['total'], 0.001);
+        self::assertCount(2, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
+        self::assertEqualsWithDelta(150.0, (float) $rows[0]['total'], 0.001);
+        self::assertSame('Bob', $rows[1]['name']);
+        self::assertEqualsWithDelta(75.0, (float) $rows[1]['total'], 0.001);
     }
 
     public function testSelectWithHaving(): void
@@ -235,9 +235,9 @@ final class QueryBuilderTest extends TestCase
             ->having('SUM(o.total) > 100')
             ->fetchAllAssociative();
 
-        $this->assertCount(1, $rows);
-        $this->assertSame('Alice', $rows[0]['name']);
-        $this->assertEqualsWithDelta(150.0, (float) $rows[0]['total'], 0.001);
+        self::assertCount(1, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
+        self::assertEqualsWithDelta(150.0, (float) $rows[0]['total'], 0.001);
     }
 
     public function testFetchAssociativeReturnsFalseWhenNoRows(): void
@@ -251,7 +251,7 @@ final class QueryBuilderTest extends TestCase
             ->setParameter('id', 999)
             ->fetchAssociative();
 
-        $this->assertFalse($row);
+        self::assertFalse($row);
     }
 
     public function testFetchOne(): void
@@ -266,7 +266,7 @@ final class QueryBuilderTest extends TestCase
             ->setParameter('email', 'alice@example.com')
             ->fetchOne();
 
-        $this->assertSame('Alice', $name);
+        self::assertSame('Alice', $name);
     }
 
     public function testExecuteQueryReturnsPDOStatement(): void
@@ -279,9 +279,9 @@ final class QueryBuilderTest extends TestCase
             ->from('users')
             ->executeQuery();
 
-        $this->assertInstanceOf(\PDOStatement::class, $stmt);
+        self::assertInstanceOf(\PDOStatement::class, $stmt);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        $this->assertSame('Alice', $row['name']);
+        self::assertSame('Alice', $row['name']);
     }
 
     public function testGetSQLForSelect(): void
@@ -296,11 +296,11 @@ final class QueryBuilderTest extends TestCase
 
         $sql = $qb->getSQL();
 
-        $this->assertStringContainsString('SELECT u.id, u.name', $sql);
-        $this->assertStringContainsString('FROM users u', $sql);
-        $this->assertStringContainsString('WHERE u.active = :active', $sql);
-        $this->assertStringContainsString('ORDER BY u.name ASC', $sql);
-        $this->assertStringContainsString('LIMIT 10', $sql);
+        self::assertStringContainsString('SELECT u.id, u.name', $sql);
+        self::assertStringContainsString('FROM users u', $sql);
+        self::assertStringContainsString('WHERE u.active = :active', $sql);
+        self::assertStringContainsString('ORDER BY u.name ASC', $sql);
+        self::assertStringContainsString('LIMIT 10', $sql);
     }
 
     // --- INSERT ---
@@ -316,10 +316,10 @@ final class QueryBuilderTest extends TestCase
             ->setParameter('email', 'john@example.com')
             ->executeStatement();
 
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         $name = $this->connection->fetchOne('SELECT name FROM users WHERE email = ?', ['john@example.com']);
-        $this->assertSame('John', $name);
+        self::assertSame('John', $name);
     }
 
     public function testInsertWithSetParameters(): void
@@ -333,7 +333,7 @@ final class QueryBuilderTest extends TestCase
             ->executeStatement();
 
         $name = $this->connection->fetchOne('SELECT name FROM users WHERE email = ?', ['jane@example.com']);
-        $this->assertSame('Jane', $name);
+        self::assertSame('Jane', $name);
     }
 
     public function testGetSQLForInsert(): void
@@ -344,7 +344,7 @@ final class QueryBuilderTest extends TestCase
 
         $sql = $qb->getSQL();
 
-        $this->assertSame('INSERT INTO users (name, email) VALUES (:name, :email)', $sql);
+        self::assertSame('INSERT INTO users (name, email) VALUES (:name, :email)', $sql);
     }
 
     // --- UPDATE ---
@@ -362,10 +362,10 @@ final class QueryBuilderTest extends TestCase
             ->setParameter('id', 1)
             ->executeStatement();
 
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         $name = $this->connection->fetchOne('SELECT name FROM users WHERE id = 1');
-        $this->assertSame('Jane', $name);
+        self::assertSame('Jane', $name);
     }
 
     public function testUpdateMultipleColumns(): void
@@ -384,7 +384,7 @@ final class QueryBuilderTest extends TestCase
             ->executeStatement();
 
         $row = $this->connection->fetchAssociative('SELECT name, email FROM users WHERE id = 1');
-        $this->assertSame(['name' => 'Updated', 'email' => 'updated@example.com'], $row);
+        self::assertSame(['name' => 'Updated', 'email' => 'updated@example.com'], $row);
     }
 
     public function testGetSQLForUpdate(): void
@@ -396,7 +396,7 @@ final class QueryBuilderTest extends TestCase
 
         $sql = $qb->getSQL();
 
-        $this->assertSame('UPDATE users SET name = :name WHERE id = :id', $sql);
+        self::assertSame('UPDATE users SET name = :name WHERE id = :id', $sql);
     }
 
     // --- DELETE ---
@@ -413,10 +413,10 @@ final class QueryBuilderTest extends TestCase
             ->setParameter('id', 1)
             ->executeStatement();
 
-        $this->assertSame(1, $affected);
+        self::assertSame(1, $affected);
 
         $count = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM users');
-        $this->assertSame(1, $count);
+        self::assertSame(1, $count);
     }
 
     public function testGetSQLForDelete(): void
@@ -427,7 +427,7 @@ final class QueryBuilderTest extends TestCase
 
         $sql = $qb->getSQL();
 
-        $this->assertSame('DELETE FROM users WHERE id = :id', $sql);
+        self::assertSame('DELETE FROM users WHERE id = :id', $sql);
     }
 
     // --- Errors ---
@@ -485,7 +485,7 @@ final class QueryBuilderTest extends TestCase
             ->delete('users')
             ->executeStatement();
 
-        $this->assertSame(2, $affected);
+        self::assertSame(2, $affected);
     }
 
     // --- OrWhere ---
@@ -505,10 +505,10 @@ final class QueryBuilderTest extends TestCase
             ->setParameter('b', 'Bob')
             ->fetchAllAssociative();
 
-        $this->assertCount(2, $rows);
+        self::assertCount(2, $rows);
         $names = array_column($rows, 'name');
-        $this->assertContains('Alice', $names);
-        $this->assertContains('Bob', $names);
+        self::assertContains('Alice', $names);
+        self::assertContains('Bob', $names);
     }
 
     // --- Inner join ---
@@ -527,8 +527,8 @@ final class QueryBuilderTest extends TestCase
             ->innerJoin('u', 'orders', 'o', 'o.user_id = u.id')
             ->fetchAllAssociative();
 
-        $this->assertCount(1, $rows);
-        $this->assertSame('Alice', $rows[0]['name']);
+        self::assertCount(1, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
     }
 
     // --- AddOrderBy ---
@@ -547,7 +547,7 @@ final class QueryBuilderTest extends TestCase
             ->addOrderBy('email', 'DESC')
             ->fetchAllAssociative();
 
-        $this->assertCount(3, $rows);
+        self::assertCount(3, $rows);
         $sql = $this->connection->createQueryBuilder()
             ->select('name')
             ->from('users')
@@ -555,7 +555,7 @@ final class QueryBuilderTest extends TestCase
             ->addOrderBy('email', 'DESC')
             ->getSQL();
 
-        $this->assertStringContainsString('ORDER BY name ASC, email DESC', $sql);
+        self::assertStringContainsString('ORDER BY name ASC, email DESC', $sql);
     }
 
     // --- SELECT * (no explicit columns) ---
@@ -570,10 +570,10 @@ final class QueryBuilderTest extends TestCase
             ->from('users')
             ->fetchAllAssociative();
 
-        $this->assertCount(1, $rows);
-        $this->assertArrayHasKey('id', $rows[0]);
-        $this->assertArrayHasKey('name', $rows[0]);
-        $this->assertArrayHasKey('email', $rows[0]);
+        self::assertCount(1, $rows);
+        self::assertArrayHasKey('id', $rows[0]);
+        self::assertArrayHasKey('name', $rows[0]);
+        self::assertArrayHasKey('email', $rows[0]);
     }
 
     public function testGetSQLForSelectStarHasAsterisk(): void
@@ -583,7 +583,7 @@ final class QueryBuilderTest extends TestCase
             ->from('users')
             ->getSQL();
 
-        $this->assertStringContainsString('SELECT *', $sql);
+        self::assertStringContainsString('SELECT *', $sql);
     }
 
     // --- FROM without alias - SQL should not duplicate table name ---
@@ -595,7 +595,7 @@ final class QueryBuilderTest extends TestCase
             ->from('users')
             ->getSQL();
 
-        $this->assertSame('SELECT id, name FROM users', $sql);
+        self::assertSame('SELECT id, name FROM users', $sql);
     }
 
     // --- join() is alias for innerJoin() ---
@@ -614,8 +614,8 @@ final class QueryBuilderTest extends TestCase
             ->join('u', 'orders', 'o', 'o.user_id = u.id')
             ->fetchAllAssociative();
 
-        $this->assertCount(1, $rows);
-        $this->assertSame('Alice', $rows[0]['name']);
+        self::assertCount(1, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
     }
 
     public function testJoinMethodGeneratesInnerJoinSQL(): void
@@ -626,7 +626,7 @@ final class QueryBuilderTest extends TestCase
             ->join('u', 'orders', 'o', 'o.user_id = u.id')
             ->getSQL();
 
-        $this->assertStringContainsString('INNER JOIN orders o ON o.user_id = u.id', $sql);
+        self::assertStringContainsString('INNER JOIN orders o ON o.user_id = u.id', $sql);
     }
 
     // --- RIGHT JOIN ---
@@ -645,7 +645,7 @@ final class QueryBuilderTest extends TestCase
             ->rightJoin('u', 'orders', 'o', 'o.user_id = u.id')
             ->getSQL();
 
-        $this->assertStringContainsString('RIGHT JOIN orders o ON o.user_id = u.id', $sql);
+        self::assertStringContainsString('RIGHT JOIN orders o ON o.user_id = u.id', $sql);
     }
 
     // --- groupBy with array ---
@@ -658,7 +658,7 @@ final class QueryBuilderTest extends TestCase
             ->groupBy(['u.name', 'u.email'])
             ->getSQL();
 
-        $this->assertStringContainsString('GROUP BY u.name, u.email', $sql);
+        self::assertStringContainsString('GROUP BY u.name, u.email', $sql);
     }
 
     // --- andHaving ---
@@ -674,7 +674,7 @@ final class QueryBuilderTest extends TestCase
             ->andHaving('COUNT(*) > 1')
             ->getSQL();
 
-        $this->assertStringContainsString('HAVING SUM(o.total) > 50 AND COUNT(*) > 1', $sql);
+        self::assertStringContainsString('HAVING SUM(o.total) > 50 AND COUNT(*) > 1', $sql);
     }
 
     // --- orWhere on empty where list ---
@@ -691,8 +691,8 @@ final class QueryBuilderTest extends TestCase
             ->setParameter('name', 'Alice')
             ->fetchAllAssociative();
 
-        $this->assertCount(1, $rows);
-        $this->assertSame('Alice', $rows[0]['name']);
+        self::assertCount(1, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
     }
 
     // --- UPDATE with alias ---
@@ -705,7 +705,7 @@ final class QueryBuilderTest extends TestCase
             ->where('u.id = :id')
             ->getSQL();
 
-        $this->assertSame('UPDATE users u SET name = :name WHERE u.id = :id', $sql);
+        self::assertSame('UPDATE users u SET name = :name WHERE u.id = :id', $sql);
     }
 
     // --- DELETE with alias ---
@@ -717,7 +717,7 @@ final class QueryBuilderTest extends TestCase
             ->where('u.id = :id')
             ->getSQL();
 
-        $this->assertSame('DELETE FROM users u WHERE u.id = :id', $sql);
+        self::assertSame('DELETE FROM users u WHERE u.id = :id', $sql);
     }
 
     // --- getConnection ---
@@ -726,7 +726,7 @@ final class QueryBuilderTest extends TestCase
     {
         $qb = $this->connection->createQueryBuilder();
 
-        $this->assertSame($this->connection, $qb->getConnection());
+        self::assertSame($this->connection, $qb->getConnection());
     }
 
     // --- DELETE without WHERE (SQL generation) ---
@@ -737,7 +737,7 @@ final class QueryBuilderTest extends TestCase
             ->delete('users')
             ->getSQL();
 
-        $this->assertSame('DELETE FROM users', $sql);
+        self::assertSame('DELETE FROM users', $sql);
     }
 
     // --- UPDATE without WHERE (SQL generation) ---
@@ -749,7 +749,7 @@ final class QueryBuilderTest extends TestCase
             ->set('name', ':name')
             ->getSQL();
 
-        $this->assertSame('UPDATE users SET name = :name', $sql);
+        self::assertSame('UPDATE users SET name = :name', $sql);
     }
 
     // --- LIMIT without OFFSET ---
@@ -762,8 +762,8 @@ final class QueryBuilderTest extends TestCase
             ->setMaxResults(5)
             ->getSQL();
 
-        $this->assertStringContainsString('LIMIT 5', $sql);
-        $this->assertStringNotContainsString('OFFSET', $sql);
+        self::assertStringContainsString('LIMIT 5', $sql);
+        self::assertStringNotContainsString('OFFSET', $sql);
     }
 
     // --- LIMIT with OFFSET ---
@@ -777,8 +777,8 @@ final class QueryBuilderTest extends TestCase
             ->setFirstResult(10)
             ->getSQL();
 
-        $this->assertStringContainsString('LIMIT 5', $sql);
-        $this->assertStringContainsString('OFFSET 10', $sql);
+        self::assertStringContainsString('LIMIT 5', $sql);
+        self::assertStringContainsString('OFFSET 10', $sql);
     }
 
     // --- Fluent API returns $this ---
@@ -787,44 +787,44 @@ final class QueryBuilderTest extends TestCase
     {
         $qb = $this->connection->createQueryBuilder();
 
-        $this->assertSame($qb, $qb->select('id'));
-        $this->assertSame($qb, $qb->addSelect('name'));
-        $this->assertSame($qb, $qb->from('users'));
-        $this->assertSame($qb, $qb->where('id = 1'));
-        $this->assertSame($qb, $qb->andWhere('name = :name'));
-        $this->assertSame($qb, $qb->orWhere('email = :email'));
-        $this->assertSame($qb, $qb->orderBy('id'));
-        $this->assertSame($qb, $qb->addOrderBy('name'));
-        $this->assertSame($qb, $qb->setFirstResult(0));
-        $this->assertSame($qb, $qb->setMaxResults(10));
-        $this->assertSame($qb, $qb->setParameter('name', 'Alice'));
-        $this->assertSame($qb, $qb->setParameters(['name' => 'Alice']));
-        $this->assertSame($qb, $qb->groupBy('id'));
-        $this->assertSame($qb, $qb->having('COUNT(*) > 1'));
-        $this->assertSame($qb, $qb->andHaving('SUM(total) > 100'));
+        self::assertSame($qb, $qb->select('id'));
+        self::assertSame($qb, $qb->addSelect('name'));
+        self::assertSame($qb, $qb->from('users'));
+        self::assertSame($qb, $qb->where('id = 1'));
+        self::assertSame($qb, $qb->andWhere('name = :name'));
+        self::assertSame($qb, $qb->orWhere('email = :email'));
+        self::assertSame($qb, $qb->orderBy('id'));
+        self::assertSame($qb, $qb->addOrderBy('name'));
+        self::assertSame($qb, $qb->setFirstResult(0));
+        self::assertSame($qb, $qb->setMaxResults(10));
+        self::assertSame($qb, $qb->setParameter('name', 'Alice'));
+        self::assertSame($qb, $qb->setParameters(['name' => 'Alice']));
+        self::assertSame($qb, $qb->groupBy('id'));
+        self::assertSame($qb, $qb->having('COUNT(*) > 1'));
+        self::assertSame($qb, $qb->andHaving('SUM(total) > 100'));
     }
 
     public function testFluentApiInsertReturnsSelf(): void
     {
         $qb = $this->connection->createQueryBuilder();
 
-        $this->assertSame($qb, $qb->insert('users'));
-        $this->assertSame($qb, $qb->values(['name' => ':name']));
+        self::assertSame($qb, $qb->insert('users'));
+        self::assertSame($qb, $qb->values(['name' => ':name']));
     }
 
     public function testFluentApiUpdateReturnsSelf(): void
     {
         $qb = $this->connection->createQueryBuilder();
 
-        $this->assertSame($qb, $qb->update('users'));
-        $this->assertSame($qb, $qb->set('name', ':name'));
+        self::assertSame($qb, $qb->update('users'));
+        self::assertSame($qb, $qb->set('name', ':name'));
     }
 
     public function testFluentApiDeleteReturnsSelf(): void
     {
         $qb = $this->connection->createQueryBuilder();
 
-        $this->assertSame($qb, $qb->delete('users'));
+        self::assertSame($qb, $qb->delete('users'));
     }
 
     public function testFluentApiJoinMethodsReturnSelf(): void
@@ -833,15 +833,15 @@ final class QueryBuilderTest extends TestCase
             ->select('u.id')
             ->from('users', 'u');
 
-        $this->assertSame($qb, $qb->join('u', 'orders', 'o', 'o.user_id = u.id'));
+        self::assertSame($qb, $qb->join('u', 'orders', 'o', 'o.user_id = u.id'));
 
         $qb2 = $this->connection->createQueryBuilder()
             ->select('u.id')
             ->from('users', 'u');
 
-        $this->assertSame($qb2, $qb2->innerJoin('u', 'posts', 'p', 'p.user_id = u.id'));
-        $this->assertSame($qb2, $qb2->leftJoin('u', 'comments', 'c', 'c.user_id = u.id'));
-        $this->assertSame($qb2, $qb2->rightJoin('u', 'tags', 't', 't.user_id = u.id'));
+        self::assertSame($qb2, $qb2->innerJoin('u', 'posts', 'p', 'p.user_id = u.id'));
+        self::assertSame($qb2, $qb2->leftJoin('u', 'comments', 'c', 'c.user_id = u.id'));
+        self::assertSame($qb2, $qb2->rightJoin('u', 'tags', 't', 't.user_id = u.id'));
     }
 
     // --- SELECT with multiple joins ---
@@ -855,8 +855,8 @@ final class QueryBuilderTest extends TestCase
             ->innerJoin('u', 'posts', 'p', 'p.user_id = u.id')
             ->getSQL();
 
-        $this->assertStringContainsString('LEFT JOIN orders o ON o.user_id = u.id', $sql);
-        $this->assertStringContainsString('INNER JOIN posts p ON p.user_id = u.id', $sql);
+        self::assertStringContainsString('LEFT JOIN orders o ON o.user_id = u.id', $sql);
+        self::assertStringContainsString('INNER JOIN posts p ON p.user_id = u.id', $sql);
     }
 
     // --- WHERE replaces previous where ---
@@ -871,9 +871,9 @@ final class QueryBuilderTest extends TestCase
             ->where('id = :id')  // should reset
             ->getSQL();
 
-        $this->assertStringContainsString('WHERE id = :id', $sql);
-        $this->assertStringNotContainsString('active', $sql);
-        $this->assertStringNotContainsString('role', $sql);
+        self::assertStringContainsString('WHERE id = :id', $sql);
+        self::assertStringNotContainsString('active', $sql);
+        self::assertStringNotContainsString('role', $sql);
     }
 
     // --- orderBy replaces previous orderBy ---
@@ -887,8 +887,8 @@ final class QueryBuilderTest extends TestCase
             ->orderBy('email', 'DESC')
             ->getSQL();
 
-        $this->assertStringContainsString('ORDER BY email DESC', $sql);
-        $this->assertStringNotContainsString('name ASC', $sql);
+        self::assertStringContainsString('ORDER BY email DESC', $sql);
+        self::assertStringNotContainsString('name ASC', $sql);
     }
 
     // --- having replaces previous having ---
@@ -903,8 +903,8 @@ final class QueryBuilderTest extends TestCase
             ->having('cnt > 5')
             ->getSQL();
 
-        $this->assertStringContainsString('HAVING cnt > 5', $sql);
-        $this->assertStringNotContainsString('cnt > 1', $sql);
+        self::assertStringContainsString('HAVING cnt > 5', $sql);
+        self::assertStringNotContainsString('cnt > 1', $sql);
     }
 
     // --- setParameters replaces all params ---
@@ -922,8 +922,8 @@ final class QueryBuilderTest extends TestCase
             ->setParameters(['name' => 'Alice'])
             ->fetchAllAssociative();
 
-        $this->assertCount(1, $rows);
-        $this->assertSame('Alice', $rows[0]['name']);
+        self::assertCount(1, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
     }
 
     // --- Complex SELECT with all clauses ---
@@ -950,9 +950,9 @@ final class QueryBuilderTest extends TestCase
             ->setParameter('active', 1)
             ->fetchAllAssociative();
 
-        $this->assertCount(1, $rows);
-        $this->assertSame('Alice', $rows[0]['name']);
-        $this->assertEqualsWithDelta(300.0, (float) $rows[0]['order_total'], 0.001);
+        self::assertCount(1, $rows);
+        self::assertSame('Alice', $rows[0]['name']);
+        self::assertEqualsWithDelta(300.0, (float) $rows[0]['order_total'], 0.001);
     }
 
     // --- DELETE requires table ---
@@ -971,7 +971,7 @@ final class QueryBuilderTest extends TestCase
             ->where('id = 1')
             ->getSQL();
 
-        $this->assertSame('DELETE FROM users WHERE id = 1', $sql);
+        self::assertSame('DELETE FROM users WHERE id = 1', $sql);
     }
 
     // --- Multiple WHERE with OR ---
@@ -995,7 +995,7 @@ final class QueryBuilderTest extends TestCase
             ->orderBy('name', 'ASC')
             ->fetchAllAssociative();
 
-        $this->assertCount(3, $rows);
+        self::assertCount(3, $rows);
     }
 
     // --- SELECT addSelect sets type to Select ---
@@ -1007,6 +1007,6 @@ final class QueryBuilderTest extends TestCase
             ->from('users')
             ->getSQL();
 
-        $this->assertStringContainsString('SELECT id, name', $sql);
+        self::assertStringContainsString('SELECT id, name', $sql);
     }
 }

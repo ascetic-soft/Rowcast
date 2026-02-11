@@ -42,13 +42,7 @@ final class TypeCasterRegistry implements TypeCasterInterface
             $type = $this->stripNullable($type);
         }
 
-        foreach ($this->casters as $caster) {
-            if ($caster->supports($type)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($this->casters, fn ($caster) => $caster->supports($type));
     }
 
     public function cast(mixed $value, string $type): mixed
@@ -69,7 +63,7 @@ final class TypeCasterRegistry implements TypeCasterInterface
             }
         }
 
-        throw new \InvalidArgumentException(sprintf('No type caster registered for type "%s".', $type));
+        throw new \InvalidArgumentException(\sprintf('No type caster registered for type "%s".', $type));
     }
 
     private function isNullable(string $type): bool

@@ -19,15 +19,15 @@ use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
  * - **Explicit mode**: pass a ResultSetMapping for full control over column ↔ property mapping
  *   and table name.
  */
-final class DataMapper
+final readonly class DataMapper
 {
-    private readonly HydratorInterface $hydrator;
-    private readonly NameConverterInterface $nameConverter;
+    private HydratorInterface $hydrator;
+    private NameConverterInterface $nameConverter;
 
     public function __construct(
-        private readonly Connection $connection,
+        private Connection      $connection,
         ?NameConverterInterface $nameConverter = null,
-        ?HydratorInterface $hydrator = null,
+        ?HydratorInterface      $hydrator = null,
     ) {
         $this->nameConverter = $nameConverter ?? new SnakeCaseToCamelCaseConverter();
         $this->hydrator = $hydrator ?? new ReflectionHydrator(nameConverter: $this->nameConverter);
@@ -283,7 +283,7 @@ final class DataMapper
      */
     private function deriveTableName(string $className): string
     {
-        $shortName = (new \ReflectionClass($className))->getShortName();
+        $shortName = new \ReflectionClass($className)->getShortName();
 
         // CamelCase → snake_case (avoid leading underscore for first uppercase letter)
         $replaced = preg_replace('/(?<!^)[A-Z]/', '_$0', $shortName);
@@ -348,7 +348,7 @@ final class DataMapper
             return null;
         }
 
-        if (is_bool($value)) {
+        if (\is_bool($value)) {
             return $value ? 1 : 0;
         }
 

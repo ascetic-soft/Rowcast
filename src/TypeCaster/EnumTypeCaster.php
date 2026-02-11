@@ -20,7 +20,7 @@ final class EnumTypeCaster implements TypeCasterInterface
             return $value;
         }
 
-        if (!is_int($value) && !is_string($value)) {
+        if (!\is_int($value) && !\is_string($value)) {
             throw new \InvalidArgumentException('Enum value must be int or string, got ' . get_debug_type($value));
         }
 

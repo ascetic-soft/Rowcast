@@ -444,7 +444,7 @@ final class ReflectionHydratorTest extends TestCase
     public function testHydrateAutoMixedTypePropertyGetsRawValue(): void
     {
         // Create an anonymous class with a mixed type property
-        $className = get_class(new class {
+        $className = get_class(new class () {
             public mixed $value;
         });
 
@@ -462,7 +462,7 @@ final class ReflectionHydratorTest extends TestCase
 
     public function testHydrateAutoUnionTypePropertyGetsRawValue(): void
     {
-        $className = get_class(new class {
+        $className = get_class(new class () {
             public int|string $value;
         });
 

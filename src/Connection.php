@@ -10,10 +10,10 @@ use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
  * Thin wrapper around PDO providing convenience methods for query execution
  * and a factory for QueryBuilder instances.
  */
-final class Connection
+final readonly class Connection
 {
     public function __construct(
-        private readonly \PDO $pdo,
+        private \PDO $pdo,
     ) {
         // Ensure PDO throws exceptions on errors — required for safe operation
         $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
@@ -100,7 +100,7 @@ final class Connection
 
         $result = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        if (is_array($result)) {
+        if (\is_array($result)) {
             /** @var array<string, mixed> $result */
             return $result;
         }
@@ -116,9 +116,7 @@ final class Connection
      */
     public function fetchOne(string $sql, array $params = []): mixed
     {
-        $stmt = $this->executeQuery($sql, $params);
-
-        return $stmt->fetchColumn();
+        return $this->executeQuery($sql, $params)->fetchColumn();
     }
 
     /**
