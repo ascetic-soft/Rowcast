@@ -341,9 +341,9 @@ class QueryBuilder
      * - PostgreSQL: scrollable cursor
      * - Other drivers: regular sequential fetch
      *
-     * @return iterable<int, array<string, mixed>, void, void>
+     * @return \Generator<int, array<string, mixed>, mixed>
      */
-    public function toIterable(): iterable
+    public function toIterable(): \Generator
     {
         return $this->connection->toIterable($this->getSQL(), $this->parameters);
     }

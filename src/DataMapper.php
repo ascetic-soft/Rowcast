@@ -174,7 +174,7 @@ final readonly class DataMapper
      * @param int|null                         $limit   Maximum number of rows to return
      * @param int|null                         $offset  Number of rows to skip
      *
-     * @return iterable<int, T, void, void>
+     * @return \Generator<int, T, mixed>
      */
     public function iterateAll(
         string|ResultSetMapping $target,
@@ -182,7 +182,7 @@ final readonly class DataMapper
         array $orderBy = [],
         ?int $limit = null,
         ?int $offset = null,
-    ): iterable {
+    ): \Generator {
         [$qb, $className, $rsm] = $this->buildSelectQuery($target, $where, $orderBy, $limit, $offset);
 
         foreach ($qb->toIterable() as $row) {

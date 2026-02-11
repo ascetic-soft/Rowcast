@@ -187,9 +187,9 @@ final readonly class Connection
      *
      * @param array<string|int, mixed> $params Positional (?) or named (:name) parameters
      *
-     * @return iterable<int, array<string, mixed>, void, void>
+     * @return \Generator<int, array<string, mixed>, mixed, void>
      */
-    public function toIterable(string $sql, array $params = []): iterable
+    public function toIterable(string $sql, array $params = []): \Generator
     {
         $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
         $restoreBuffered = false;
