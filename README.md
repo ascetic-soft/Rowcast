@@ -1,6 +1,7 @@
 # Rowcast
 
 [![CI](https://github.com/ascetic-soft/Rowcast/actions/workflows/ci.yml/badge.svg)](https://github.com/ascetic-soft/Rowcast/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/ascetic-soft/Rowcast/graph/badge.svg)](https://codecov.io/gh/ascetic-soft/Rowcast)
 
 Lightweight DataMapper over PDO for PHP 8.4+.
 

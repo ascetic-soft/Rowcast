@@ -62,5 +62,14 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist
 
-      - name: Run tests
-        run: vendor/bin/phpunit --coverage-text
+      - name: Run tests with coverage
+        run: vendor/bin/phpunit --coverage-clover coverage.xml --coverage-text
+
+      - name: Upload coverage to Codecov
+        if: matrix.php == '8.4'
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
