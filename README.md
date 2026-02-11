@@ -1,5 +1,7 @@
 # Rowcast
 
+[![CI](https://github.com/borodulin/Rowcast/actions/workflows/ci.yml/badge.svg)](https://github.com/borodulin/Rowcast/actions/workflows/ci.yml)
+
 Lightweight DataMapper over PDO for PHP 8.4+.
 
 Zero external dependencies. Maps database rows to plain DTO objects and back using Reflection, with automatic type casting, naming convention support, and a fluent query builder.
