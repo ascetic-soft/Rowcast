@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Hydration;
+namespace AsceticSoft\Rowcast\Hydration;
 
-use Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
 
 interface HydratorInterface
 {

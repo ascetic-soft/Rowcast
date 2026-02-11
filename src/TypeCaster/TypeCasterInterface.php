@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\TypeCaster;
+namespace AsceticSoft\Rowcast\TypeCaster;
 
 interface TypeCasterInterface
 {

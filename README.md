@@ -12,14 +12,14 @@ Zero external dependencies. Maps database rows to plain DTO objects and back usi
 ## Installation
 
 ```bash
-composer require borodulin/rowcast
+composer require ascetic-soft/rowcast
 ```
 
 ## Quick Start
 
 ```php
-use Rowcast\Connection;
-use Rowcast\DataMapper;
+use AsceticSoft\Rowcast\Connection;
+use AsceticSoft\Rowcast\DataMapper;
 
 // 1. Create a DTO
 class User
@@ -82,7 +82,7 @@ Property names are converted using `SnakeCaseToCamelCaseConverter`:
 When column names don't follow conventions or the table name differs, use `ResultSetMapping`:
 
 ```php
-use Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
 
 $rsm = new ResultSetMapping(User::class, table: 'custom_users');
 $rsm->addField('usr_nm', 'name')
@@ -122,7 +122,7 @@ $rsm = ResultSetMapping::fromArray([
 ### Creating a Connection
 
 ```php
-use Rowcast\Connection;
+use AsceticSoft\Rowcast\Connection;
 
 // From DSN parameters
 $connection = Connection::create(
@@ -294,8 +294,8 @@ Rowcast automatically casts database values to the PHP types declared on your DT
 Implement `TypeCasterInterface` and register it in the registry:
 
 ```php
-use Rowcast\TypeCaster\TypeCasterInterface;
-use Rowcast\TypeCaster\TypeCasterRegistry;
+use AsceticSoft\Rowcast\TypeCaster\TypeCasterInterface;
+use AsceticSoft\Rowcast\TypeCaster\TypeCasterRegistry;
 
 class UuidTypeCaster implements TypeCasterInterface
 {
@@ -317,7 +317,7 @@ $registry->addCaster(new UuidTypeCaster());
 Then pass a custom hydrator to `DataMapper`:
 
 ```php
-use Rowcast\Hydration\ReflectionHydrator;
+use AsceticSoft\Rowcast\Hydration\ReflectionHydrator;
 
 $hydrator = new ReflectionHydrator(typeCaster: $registry);
 $mapper = new DataMapper($connection, hydrator: $hydrator);
@@ -399,7 +399,7 @@ $sql = $qb->getSQL();
 By default, `SnakeCaseToCamelCaseConverter` converts between `snake_case` columns and `camelCase` properties. You can provide a different converter:
 
 ```php
-use Rowcast\Mapping\NameConverter\NullConverter;
+use AsceticSoft\Rowcast\Mapping\NameConverter\NullConverter;
 
 // NullConverter: no conversion, property names used as column names
 $mapper = new DataMapper($connection, nameConverter: new NullConverter());
@@ -408,7 +408,7 @@ $mapper = new DataMapper($connection, nameConverter: new NullConverter());
 Implement `NameConverterInterface` for custom logic:
 
 ```php
-use Rowcast\Mapping\NameConverter\NameConverterInterface;
+use AsceticSoft\Rowcast\Mapping\NameConverter\NameConverterInterface;
 
 class PrefixedConverter implements NameConverterInterface
 {
@@ -429,8 +429,8 @@ class PrefixedConverter implements NameConverterInterface
 Implement `HydratorInterface` to customize how database rows are converted to objects:
 
 ```php
-use Rowcast\Hydration\HydratorInterface;
-use Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Hydration\HydratorInterface;
+use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
 
 class MyHydrator implements HydratorInterface
 {
@@ -512,7 +512,7 @@ $found = $mapper->findOne(Post::class, ['id' => 1]);
 ## Architecture
 
 ```
-Rowcast\
+AsceticSoft\Rowcast\
 ├── Connection                          # PDO wrapper with convenience methods
 ├── DataMapper                          # Main DataMapper (CRUD operations)
 ├── Hydration\

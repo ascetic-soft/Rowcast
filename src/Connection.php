@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Rowcast;
+namespace AsceticSoft\Rowcast;
 
-use Rowcast\QueryBuilder\QueryBuilder;
+use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
 
 /**
  * Thin wrapper around PDO providing convenience methods for query execution

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Tests;
+namespace AsceticSoft\Rowcast\Tests;
 
 use PHPUnit\Framework\TestCase;
-use Rowcast\Connection;
-use Rowcast\QueryBuilder\QueryBuilder;
+use AsceticSoft\Rowcast\Connection;
+use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
 
 final class ConnectionTest extends TestCase
 {

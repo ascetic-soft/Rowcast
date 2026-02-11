@@ -1,5 +1,5 @@
 {
-    "name": "borodulin/rowcast",
+    "name": "ascetic-soft/rowcast",
     "description": "Lightweight DataMapper over PDO",
     "type": "library",
     "license": "MIT",
@@ -18,12 +18,12 @@
     },
     "autoload": {
         "psr-4": {
-            "Rowcast\\": "src/"
+            "AsceticSoft\\Rowcast\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Rowcast\\Tests\\": "tests/"
+            "AsceticSoft\\Rowcast\\Tests\\": "tests/"
         }
     }
 }

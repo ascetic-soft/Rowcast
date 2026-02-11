@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Tests\Mapping;
+namespace AsceticSoft\Rowcast\Tests\Mapping;
 
 use PHPUnit\Framework\TestCase;
-use Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
 
 final class ResultSetMappingTest extends TestCase
 {

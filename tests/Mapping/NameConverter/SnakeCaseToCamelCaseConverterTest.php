@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Tests\Mapping\NameConverter;
+namespace AsceticSoft\Rowcast\Tests\Mapping\NameConverter;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Rowcast\Mapping\NameConverter\NameConverterInterface;
-use Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
+use AsceticSoft\Rowcast\Mapping\NameConverter\NameConverterInterface;
+use AsceticSoft\Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
 
 final class SnakeCaseToCamelCaseConverterTest extends TestCase
 {

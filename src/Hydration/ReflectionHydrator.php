@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Hydration;
+namespace AsceticSoft\Rowcast\Hydration;
 
-use Rowcast\Mapping\NameConverter\NameConverterInterface;
-use Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
-use Rowcast\Mapping\ResultSetMapping;
-use Rowcast\TypeCaster\TypeCasterInterface;
-use Rowcast\TypeCaster\TypeCasterRegistry;
+use AsceticSoft\Rowcast\Mapping\NameConverter\NameConverterInterface;
+use AsceticSoft\Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
+use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\TypeCaster\TypeCasterInterface;
+use AsceticSoft\Rowcast\TypeCaster\TypeCasterRegistry;
 
 final class ReflectionHydrator implements HydratorInterface
 {

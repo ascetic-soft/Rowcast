@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Tests;
+namespace AsceticSoft\Rowcast\Tests;
 
 use PHPUnit\Framework\TestCase;
-use Rowcast\Connection;
-use Rowcast\DataMapper;
-use Rowcast\Mapping\NameConverter\NullConverter;
-use Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
-use Rowcast\Mapping\ResultSetMapping;
-use Rowcast\Tests\Hydration\Fixtures\DtoWithEnum;
-use Rowcast\Tests\Hydration\Fixtures\SimpleUser;
-use Rowcast\Tests\Hydration\Fixtures\UserStatus;
-use Rowcast\Tests\Hydration\Fixtures\UserWithDates;
+use AsceticSoft\Rowcast\Connection;
+use AsceticSoft\Rowcast\DataMapper;
+use AsceticSoft\Rowcast\Mapping\NameConverter\NullConverter;
+use AsceticSoft\Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
+use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\DtoWithEnum;
+use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\SimpleUser;
+use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\UserStatus;
+use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\UserWithDates;
 
 final class DataMapperTest extends TestCase
 {

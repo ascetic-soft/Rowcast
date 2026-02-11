@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\QueryBuilder;
+namespace AsceticSoft\Rowcast\QueryBuilder;
 
-use Rowcast\Connection;
+use AsceticSoft\Rowcast\Connection;
 
 /**
  * Doctrine DBAL-like query builder.

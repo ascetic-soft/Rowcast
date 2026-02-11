@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Mapping;
+namespace AsceticSoft\Rowcast\Mapping;
 
 final class ResultSetMapping
 {

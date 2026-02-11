@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\QueryBuilder;
+namespace AsceticSoft\Rowcast\QueryBuilder;
 
 enum QueryType
 {

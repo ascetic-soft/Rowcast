@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Tests\TypeCaster;
+namespace AsceticSoft\Rowcast\Tests\TypeCaster;
 
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Rowcast\TypeCaster\DateTimeTypeCaster;
-use Rowcast\TypeCaster\EnumTypeCaster;
-use Rowcast\TypeCaster\ScalarTypeCaster;
-use Rowcast\TypeCaster\TypeCasterInterface;
-use Rowcast\TypeCaster\TypeCasterRegistry;
+use AsceticSoft\Rowcast\TypeCaster\DateTimeTypeCaster;
+use AsceticSoft\Rowcast\TypeCaster\EnumTypeCaster;
+use AsceticSoft\Rowcast\TypeCaster\ScalarTypeCaster;
+use AsceticSoft\Rowcast\TypeCaster\TypeCasterInterface;
+use AsceticSoft\Rowcast\TypeCaster\TypeCasterRegistry;
 
 final class TypeCasterRegistryTest extends TestCase
 {

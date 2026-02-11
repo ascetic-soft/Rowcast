@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Rowcast;
+namespace AsceticSoft\Rowcast;
 
-use Rowcast\Hydration\HydratorInterface;
-use Rowcast\Hydration\ReflectionHydrator;
-use Rowcast\Mapping\NameConverter\NameConverterInterface;
-use Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
-use Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Hydration\HydratorInterface;
+use AsceticSoft\Rowcast\Hydration\ReflectionHydrator;
+use AsceticSoft\Rowcast\Mapping\NameConverter\NameConverterInterface;
+use AsceticSoft\Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
+use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
 
 /**
  * Lightweight DataMapper for persisting and querying DTO objects.

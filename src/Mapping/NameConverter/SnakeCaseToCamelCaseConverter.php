@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Mapping\NameConverter;
+namespace AsceticSoft\Rowcast\Mapping\NameConverter;
 
 final class SnakeCaseToCamelCaseConverter implements NameConverterInterface
 {

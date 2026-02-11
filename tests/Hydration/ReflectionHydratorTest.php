@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Tests\Hydration;
+namespace AsceticSoft\Rowcast\Tests\Hydration;
 
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
-use Rowcast\Hydration\HydratorInterface;
-use Rowcast\Hydration\ReflectionHydrator;
-use Rowcast\Mapping\NameConverter\NullConverter;
-use Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
-use Rowcast\Mapping\ResultSetMapping;
-use Rowcast\Tests\Hydration\Fixtures\AllScalarsDto;
-use Rowcast\Tests\Hydration\Fixtures\ConstructorDto;
-use Rowcast\Tests\Hydration\Fixtures\DtoWithEnum;
-use Rowcast\Tests\Hydration\Fixtures\NullableDto;
-use Rowcast\Tests\Hydration\Fixtures\SimpleUser;
-use Rowcast\Tests\Hydration\Fixtures\UserStatus;
-use Rowcast\Tests\Hydration\Fixtures\UserWithDates;
-use Rowcast\Tests\Hydration\Fixtures\UntypedDto;
-use Rowcast\TypeCaster\TypeCasterRegistry;
+use AsceticSoft\Rowcast\Hydration\HydratorInterface;
+use AsceticSoft\Rowcast\Hydration\ReflectionHydrator;
+use AsceticSoft\Rowcast\Mapping\NameConverter\NullConverter;
+use AsceticSoft\Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
+use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\AllScalarsDto;
+use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\ConstructorDto;
+use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\DtoWithEnum;
+use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\NullableDto;
+use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\SimpleUser;
+use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\UserStatus;
+use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\UserWithDates;
+use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\UntypedDto;
+use AsceticSoft\Rowcast\TypeCaster\TypeCasterRegistry;
 
 final class ReflectionHydratorTest extends TestCase
 {

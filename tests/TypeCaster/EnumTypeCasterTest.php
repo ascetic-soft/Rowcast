@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Tests\TypeCaster;
+namespace AsceticSoft\Rowcast\Tests\TypeCaster;
 
 use PHPUnit\Framework\TestCase;
-use Rowcast\TypeCaster\EnumTypeCaster;
-use Rowcast\TypeCaster\TypeCasterInterface;
+use AsceticSoft\Rowcast\TypeCaster\EnumTypeCaster;
+use AsceticSoft\Rowcast\TypeCaster\TypeCasterInterface;
 
 enum Status: string
 {

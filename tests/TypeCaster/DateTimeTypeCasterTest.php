@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Tests\TypeCaster;
+namespace AsceticSoft\Rowcast\Tests\TypeCaster;
 
 use DateTimeImmutable;
 use DateTime;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Rowcast\TypeCaster\DateTimeTypeCaster;
-use Rowcast\TypeCaster\TypeCasterInterface;
+use AsceticSoft\Rowcast\TypeCaster\DateTimeTypeCaster;
+use AsceticSoft\Rowcast\TypeCaster\TypeCasterInterface;
 
 final class DateTimeTypeCasterTest extends TestCase
 {

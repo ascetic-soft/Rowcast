@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Tests\Hydration\Fixtures;
+namespace AsceticSoft\Rowcast\Tests\Hydration\Fixtures;
 
 /**
  * DTO with a constructor that has required parameters.

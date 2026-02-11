@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Rowcast\Tests\TypeCaster;
+namespace AsceticSoft\Rowcast\Tests\TypeCaster;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Rowcast\TypeCaster\ScalarTypeCaster;
-use Rowcast\TypeCaster\TypeCasterInterface;
+use AsceticSoft\Rowcast\TypeCaster\ScalarTypeCaster;
+use AsceticSoft\Rowcast\TypeCaster\TypeCasterInterface;
 
 final class ScalarTypeCasterTest extends TestCase
 {
