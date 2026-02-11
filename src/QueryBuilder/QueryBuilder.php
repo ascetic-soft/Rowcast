@@ -190,6 +190,9 @@ class QueryBuilder
         return $this;
     }
 
+    /**
+     * Sets offset
+     */
     public function setFirstResult(int $firstResult): self
     {
         $this->firstResult = $firstResult;
@@ -197,6 +200,9 @@ class QueryBuilder
         return $this;
     }
 
+    /**
+     * Sets limit
+     */
     public function setMaxResults(int $maxResults): self
     {
         $this->maxResults = $maxResults;
