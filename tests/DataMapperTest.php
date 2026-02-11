@@ -547,13 +547,13 @@ final class DataMapperTest extends TestCase
         self::assertSame('Bob', $users[1]->name);
     }
 
-    public function testIterateAllReturnsGenerator(): void
+    public function testIterateAllReturnsIterable(): void
     {
         $this->createSimpleUsersTable();
 
         $result = $this->mapper->iterateAll(SimpleUser::class);
 
-        self::assertInstanceOf(\Generator::class, $result);
+        self::assertIsIterable($result);
     }
 
     public function testIterateAllWithWhereConditions(): void
@@ -612,7 +612,7 @@ final class DataMapperTest extends TestCase
         self::assertSame('Charlie', $users[1]->name);
     }
 
-    public function testIterateAllYieldsEmptyGeneratorWhenNoRows(): void
+    public function testIterateAllYieldsEmptyIterableWhenNoRows(): void
     {
         $this->createSimpleUsersTable();
 

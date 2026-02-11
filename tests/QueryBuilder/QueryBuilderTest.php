@@ -1044,7 +1044,7 @@ final class QueryBuilderTest extends TestCase
         self::assertSame(['name' => 'Alice', 'email' => 'alice@example.com'], $rows[0]);
     }
 
-    public function testToIterableReturnsEmptyGeneratorWhenNoRows(): void
+    public function testToIterableReturnsEmptyIterableWhenNoRows(): void
     {
         $this->createUsersTable();
 
@@ -1060,7 +1060,7 @@ final class QueryBuilderTest extends TestCase
         self::assertSame([], $rows);
     }
 
-    public function testToIterableReturnsGenerator(): void
+    public function testToIterableReturnsIterable(): void
     {
         $this->createUsersTable();
 
@@ -1069,7 +1069,7 @@ final class QueryBuilderTest extends TestCase
             ->from('users')
             ->toIterable();
 
-        self::assertInstanceOf(\Generator::class, $result);
+        self::assertIsIterable($result);
     }
 
     public function testToIterableWithLimitAndOffset(): void

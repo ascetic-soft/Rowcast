@@ -164,7 +164,7 @@ final readonly class DataMapper
      * Finds all matching rows and yields them as hydrated DTO objects one at a time.
      *
      * Uses PDO cursor-based fetching for memory-efficient iteration over large result sets.
-     * Each row is hydrated lazily — only when consumed from the generator.
+     * Each row is hydrated lazily — only when consumed from the iterable.
      *
      * @template T of object
      *
@@ -174,7 +174,7 @@ final readonly class DataMapper
      * @param int|null                         $limit   Maximum number of rows to return
      * @param int|null                         $offset  Number of rows to skip
      *
-     * @return \Generator<int, T, mixed>
+     * @return iterable<int, T>
      */
     public function iterateAll(
         string|ResultSetMapping $target,
@@ -182,7 +182,7 @@ final readonly class DataMapper
         array $orderBy = [],
         ?int $limit = null,
         ?int $offset = null,
-    ): \Generator {
+    ): iterable {
         [$qb, $className, $rsm] = $this->buildSelectQuery($target, $where, $orderBy, $limit, $offset);
 
         foreach ($qb->toIterable() as $row) {

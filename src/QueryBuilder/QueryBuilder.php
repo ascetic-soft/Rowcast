@@ -339,7 +339,7 @@ class QueryBuilder
     }
 
     /**
-     * Executes the query and returns a Generator that yields rows one at a time.
+     * Executes the query and returns an iterable that yields rows one at a time.
      *
      * Uses PDO cursor-based fetching for memory-efficient iteration over large result sets.
      * The underlying driver determines the cursor strategy:
@@ -347,9 +347,9 @@ class QueryBuilder
      * - PostgreSQL: scrollable cursor
      * - Other drivers: regular sequential fetch
      *
-     * @return \Generator<int, array<string, mixed>, mixed>
+     * @return iterable<int, array<string, mixed>>
      */
-    public function toIterable(): \Generator
+    public function toIterable(): iterable
     {
         return $this->connection->toIterable($this->getSQL(), $this->parameters);
     }

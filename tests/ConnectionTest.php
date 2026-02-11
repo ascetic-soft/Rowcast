@@ -485,7 +485,7 @@ final class ConnectionTest extends TestCase
         self::assertSame('Bob', $rows[0]['name']);
     }
 
-    public function testToIterableReturnsEmptyGeneratorWhenNoRows(): void
+    public function testToIterableReturnsEmptyIterableWhenNoRows(): void
     {
         $this->createUsersTable();
 
@@ -497,13 +497,13 @@ final class ConnectionTest extends TestCase
         self::assertSame([], $rows);
     }
 
-    public function testToIterableReturnsGenerator(): void
+    public function testToIterableReturnsIterable(): void
     {
         $this->createUsersTable();
 
         $result = $this->connection->toIterable('SELECT * FROM users');
 
-        self::assertInstanceOf(\Generator::class, $result);
+        self::assertIsIterable($result);
     }
 
     public function testToIterableSupportsEarlyBreak(): void

@@ -178,7 +178,7 @@ final readonly class Connection
     }
 
     /**
-     * Executes a query and returns a Generator that yields rows one at a time.
+     * Executes a query and returns an iterable that yields rows one at a time.
      *
      * Uses PDO cursor-based fetching for memory-efficient iteration over large result sets:
      * - MySQL: unbuffered queries (PDO::MYSQL_ATTR_USE_BUFFERED_QUERY = false)
@@ -187,9 +187,9 @@ final readonly class Connection
      *
      * @param array<string|int, mixed> $params Positional (?) or named (:name) parameters
      *
-     * @return \Generator<int, array<string, mixed>, mixed, void>
+     * @return iterable<int, array<string, mixed>>
      */
-    public function toIterable(string $sql, array $params = []): \Generator
+    public function toIterable(string $sql, array $params = []): iterable
     {
         $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
         $restoreBuffered = false;
