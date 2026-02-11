@@ -262,27 +262,27 @@ Rowcast automatically casts database values to the PHP types declared on your DT
 
 ### Read (DB to PHP)
 
-| Database value | PHP property type      | Result                |
-|----------------|------------------------|-----------------------|
-| `"42"`         | `int`                  | `42`                  |
-| `"3.14"`       | `float`                | `3.14`                |
-| `"1"` / `"0"`  | `bool`                 | `true` / `false`      |
-| `42`           | `string`               | `"42"`                |
-| `"2025-06-15 10:30:00"` | `DateTimeImmutable` | `DateTimeImmutable` object |
-| `"2025-06-15 10:30:00"` | `DateTimeInterface` | `DateTimeImmutable` object |
-| `"2025-06-15 10:30:00"` | `DateTime`          | `DateTime` object     |
-| `"active"`     | `UserStatus` (BackedEnum) | `UserStatus::Active` |
-| `NULL`         | `?int`, `?string`, etc. | `null`               |
+| Database value          | PHP property type         | Result                     |
+|-------------------------|---------------------------|----------------------------|
+| `"42"`                  | `int`                     | `42`                       |
+| `"3.14"`                | `float`                   | `3.14`                     |
+| `"1"` / `"0"`           | `bool`                    | `true` / `false`           |
+| `42`                    | `string`                  | `"42"`                     |
+| `"2025-06-15 10:30:00"` | `DateTimeImmutable`       | `DateTimeImmutable` object |
+| `"2025-06-15 10:30:00"` | `DateTimeInterface`       | `DateTimeImmutable` object |
+| `"2025-06-15 10:30:00"` | `DateTime`                | `DateTime` object          |
+| `"active"`              | `UserStatus` (BackedEnum) | `UserStatus::Active`       |
+| `NULL`                  | `?int`, `?string`, etc.   | `null`                     |
 
 ### Write (PHP to DB)
 
-| PHP value            | Database value             |
-|----------------------|----------------------------|
-| `true` / `false`     | `1` / `0`                  |
-| `DateTimeInterface`  | `"Y-m-d H:i:s"` string    |
-| `BackedEnum`         | Backing value (`int`/`string`) |
-| `null`               | `NULL`                     |
-| Scalars              | Passed through as-is       |
+| PHP value           | Database value                 |
+|---------------------|--------------------------------|
+| `true` / `false`    | `1` / `0`                      |
+| `DateTimeInterface` | `"Y-m-d H:i:s"` string         |
+| `BackedEnum`        | Backing value (`int`/`string`) |
+| `null`              | `NULL`                         |
+| Scalars             | Passed through as-is           |
 
 ### Built-in Type Casters
 
