@@ -1,8 +1,20 @@
 {
     "name": "ascetic-soft/rowcast",
-    "description": "Lightweight DataMapper over PDO",
+    "description": "Lightweight DataMapper and QueryBuilder over PDO with DTO hydration and type casting",
     "type": "library",
     "license": "MIT",
+    "keywords": [
+        "database",
+        "datamapper",
+        "query-builder",
+        "pdo",
+        "dto",
+        "hydration",
+        "type-casting",
+        "orm",
+        "mapping",
+        "php"
+    ],
     "authors": [
         {
             "name": "Andrey Borodulin",
