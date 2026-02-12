@@ -547,10 +547,10 @@ final class ConnectionTest extends TestCase
         $this->createUsersTableOn($connection);
 
         $connection->beginTransaction();               // real BEGIN
-        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Alice', 'a@example.com']);
+        $connection->executeStatement('INSERT INTO users (name, email) VALUES (?, ?)', ['Alice', 'a@example.com']);
 
         $connection->beginTransaction();               // SAVEPOINT ROWCAST_1
-        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Bob', 'b@example.com']);
+        $connection->executeStatement('INSERT INTO users (name, email) VALUES (?, ?)', ['Bob', 'b@example.com']);
         $connection->commit();                         // RELEASE SAVEPOINT ROWCAST_1
 
         $connection->commit();                         // real COMMIT
@@ -565,10 +565,10 @@ final class ConnectionTest extends TestCase
         $this->createUsersTableOn($connection);
 
         $connection->beginTransaction();
-        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Alice', 'a@example.com']);
+        $connection->executeStatement('INSERT INTO users (name, email) VALUES (?, ?)', ['Alice', 'a@example.com']);
 
         $connection->beginTransaction();               // SAVEPOINT
-        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Bob', 'b@example.com']);
+        $connection->executeStatement('INSERT INTO users (name, email) VALUES (?, ?)', ['Bob', 'b@example.com']);
         $connection->rollBack();                       // ROLLBACK TO SAVEPOINT
 
         $connection->commit();                         // real COMMIT
@@ -584,10 +584,10 @@ final class ConnectionTest extends TestCase
         $this->createUsersTableOn($connection);
 
         $connection->beginTransaction();
-        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Alice', 'a@example.com']);
+        $connection->executeStatement('INSERT INTO users (name, email) VALUES (?, ?)', ['Alice', 'a@example.com']);
 
         $connection->beginTransaction();
-        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Bob', 'b@example.com']);
+        $connection->executeStatement('INSERT INTO users (name, email) VALUES (?, ?)', ['Bob', 'b@example.com']);
         $connection->commit();                         // RELEASE SAVEPOINT
 
         $connection->rollBack();                       // real ROLLBACK — everything gone
@@ -602,10 +602,10 @@ final class ConnectionTest extends TestCase
         $this->createUsersTableOn($connection);
 
         $connection->transactional(function (Connection $conn): void {
-            $conn->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Alice', 'a@example.com']);
+            $conn->executeStatement('INSERT INTO users (name, email) VALUES (?, ?)', ['Alice', 'a@example.com']);
 
             $conn->transactional(function (Connection $inner): void {
-                $inner->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Bob', 'b@example.com']);
+                $inner->executeStatement('INSERT INTO users (name, email) VALUES (?, ?)', ['Bob', 'b@example.com']);
             });
         });
 
@@ -619,11 +619,11 @@ final class ConnectionTest extends TestCase
         $this->createUsersTableOn($connection);
 
         $connection->transactional(function (Connection $conn): void {
-            $conn->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Alice', 'a@example.com']);
+            $conn->executeStatement('INSERT INTO users (name, email) VALUES (?, ?)', ['Alice', 'a@example.com']);
 
             try {
                 $conn->transactional(function (Connection $inner): never {
-                    $inner->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Bob', 'b@example.com']);
+                    $inner->executeStatement('INSERT INTO users (name, email) VALUES (?, ?)', ['Bob', 'b@example.com']);
                     throw new \RuntimeException('inner failure');
                 });
             } catch (\RuntimeException) {
@@ -685,13 +685,13 @@ final class ConnectionTest extends TestCase
         $this->createUsersTableOn($connection);
 
         $connection->beginTransaction();               // level 0 → 1
-        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Alice', 'a@example.com']);
+        $connection->executeStatement('INSERT INTO users (name, email) VALUES (?, ?)', ['Alice', 'a@example.com']);
 
         $connection->beginTransaction();               // level 1 → 2
-        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Bob', 'b@example.com']);
+        $connection->executeStatement('INSERT INTO users (name, email) VALUES (?, ?)', ['Bob', 'b@example.com']);
 
         $connection->beginTransaction();               // level 2 → 3
-        $connection->executeStatement("INSERT INTO users (name, email) VALUES (?, ?)", ['Charlie', 'c@example.com']);
+        $connection->executeStatement('INSERT INTO users (name, email) VALUES (?, ?)', ['Charlie', 'c@example.com']);
         $connection->rollBack();                       // level 3 → 2 (Charlie reverted)
 
         $connection->commit();                         // level 2 → 1 (Bob kept)

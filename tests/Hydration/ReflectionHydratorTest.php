@@ -4,22 +4,21 @@ declare(strict_types=1);
 
 namespace AsceticSoft\Rowcast\Tests\Hydration;
 
-use DateTimeImmutable;
-use PHPUnit\Framework\TestCase;
 use AsceticSoft\Rowcast\Hydration\HydratorInterface;
 use AsceticSoft\Rowcast\Hydration\ReflectionHydrator;
 use AsceticSoft\Rowcast\Mapping\NameConverter\NullConverter;
-use AsceticSoft\Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
 use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
 use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\AllScalarsDto;
 use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\ConstructorDto;
 use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\DtoWithEnum;
 use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\NullableDto;
 use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\SimpleUser;
+use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\UntypedDto;
 use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\UserStatus;
 use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\UserWithDates;
-use AsceticSoft\Rowcast\Tests\Hydration\Fixtures\UntypedDto;
 use AsceticSoft\Rowcast\TypeCaster\TypeCasterRegistry;
+use DateTimeImmutable;
+use PHPUnit\Framework\TestCase;
 
 final class ReflectionHydratorTest extends TestCase
 {
@@ -444,7 +443,7 @@ final class ReflectionHydratorTest extends TestCase
     public function testHydrateAutoMixedTypePropertyGetsRawValue(): void
     {
         // Create an anonymous class with a mixed type property
-        $className = get_class(new class () {
+        $className = \get_class(new class () {
             public mixed $value;
         });
 
@@ -462,7 +461,7 @@ final class ReflectionHydratorTest extends TestCase
 
     public function testHydrateAutoUnionTypePropertyGetsRawValue(): void
     {
-        $className = get_class(new class () {
+        $className = \get_class(new class () {
             public int|string $value;
         });
 
@@ -549,7 +548,7 @@ final class ReflectionHydratorTest extends TestCase
     {
         $rows = [];
         for ($i = 0; $i < 100; $i++) {
-            $rows[] = ['id' => (string) $i, 'name' => "User{$i}", 'email' => "user{$i}@test.com"];
+            $rows[] = ['id' => (string) $i, 'name' => "User$i", 'email' => "user$i@test.com"];
         }
 
         $users = $this->hydrator->hydrateAll(SimpleUser::class, $rows);
