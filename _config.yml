@@ -1,0 +1,56 @@
+title: Rowcast
+description: Lightweight DataMapper over PDO for PHP 8.4+ with DTO hydration and type casting
+remote_theme: just-the-docs/just-the-docs@v0.10.0
+url: "https://ascetic-soft.github.io"
+baseurl: "/Rowcast"
+
+color_scheme: light
+
+aux_links:
+  "Русский":
+    - "/Rowcast/ru/"
+  "GitHub":
+    - "https://github.com/ascetic-soft/Rowcast"
+  "Packagist":
+    - "https://packagist.org/packages/ascetic-soft/rowcast"
+
+aux_links_new_tab: true
+
+nav_sort: case_insensitive
+
+heading_anchors: true
+
+search_enabled: true
+search.rel_url: true
+search.focus_shortcut_key: "k"
+
+back_to_top: true
+back_to_top_text: "Back to top"
+
+footer_content: 'Rowcast &mdash; MIT License &mdash; <a href="https://github.com/ascetic-soft/Rowcast">GitHub</a>'
+
+callouts:
+  note:
+    title: Note
+    color: blue
+  warning:
+    title: Warning
+    color: red
+  tip:
+    title: Tip
+    color: green
+  important:
+    title: Important
+    color: yellow
+
+plugins:
+  - jekyll-remote-theme
+
+sass:
+  style: compressed
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
