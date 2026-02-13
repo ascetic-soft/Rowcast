@@ -12,6 +12,8 @@ Lightweight DataMapper over PDO for PHP 8.4+.
 
 Zero external dependencies. Maps database rows to plain DTO objects and back using Reflection, with automatic type casting, naming convention support, and a fluent query builder.
 
+**Documentation:** [English](https://ascetic-soft.github.io/Rowcast/) | [Русский](https://ascetic-soft.github.io/Rowcast/ru/)
+
 ## Requirements
 
 - PHP >= 8.4
