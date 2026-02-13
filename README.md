@@ -1,7 +1,7 @@
 # Rowcast
 
 [![CI](https://github.com/ascetic-soft/Rowcast/actions/workflows/ci.yml/badge.svg)](https://github.com/ascetic-soft/Rowcast/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/ascetic-soft/Rowcast/graph/badge.svg)](https://codecov.io/gh/ascetic-soft/Rowcast)
+[![codecov](https://codecov.io/gh/ascetic-soft/Rowcast/graph/badge.svg?token=6GZCAEXM6F)](https://codecov.io/gh/ascetic-soft/Rowcast)
 [![PHPStan Level 9](https://img.shields.io/badge/phpstan-level%209-brightgreen)](https://phpstan.org/)
 [![Latest Stable Version](https://img.shields.io/packagist/v/ascetic-soft/rowcast)](https://packagist.org/packages/ascetic-soft/rowcast)
 [![Total Downloads](https://img.shields.io/packagist/dt/ascetic-soft/rowcast)](https://packagist.org/packages/ascetic-soft/rowcast)
