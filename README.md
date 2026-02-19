@@ -557,11 +557,39 @@ $found = $mapper->findOne(Post::class, ['id' => 1]);
 // $found->createdAt instanceof DateTimeImmutable
 ```
 
+## Custom Value Converter (PHP to DB)
+
+By default Rowcast converts `bool`, `BackedEnum`, and `DateTimeInterface` values when writing to the database. You can add custom converters for other types (e.g. UUID, JSON):
+
+```php
+use AsceticSoft\Rowcast\Persistence\ValueConverterInterface;
+use AsceticSoft\Rowcast\Persistence\ValueConverterRegistry;
+
+class UuidValueConverter implements ValueConverterInterface
+{
+    public function supports(mixed $value): bool
+    {
+        return $value instanceof Uuid;
+    }
+
+    public function convertForDb(mixed $value): string
+    {
+        return $value->toString();
+    }
+}
+
+$registry = ValueConverterRegistry::createDefault();
+$registry->addConverter(new UuidValueConverter());
+
+$mapper = new DataMapper($connection, valueConverter: $registry);
+```
+
 ## Architecture
 
 ```
 AsceticSoft\Rowcast\
-├── Connection                          # PDO wrapper with convenience methods
+├── ConnectionInterface                 # Connection contract
+├── Connection                          # PDO wrapper (implements ConnectionInterface)
 ├── DataMapper                          # Main DataMapper (CRUD operations)
 ├── Hydration\
 │   ├── HydratorInterface              # Hydrator contract
@@ -572,11 +600,24 @@ AsceticSoft\Rowcast\
 │       ├── NameConverterInterface     # Name converter contract
 │       ├── SnakeCaseToCamelCaseConverter  # snake_case ↔ camelCase (default)
 │       └── NullConverter              # No conversion (pass-through)
+├── Persistence\
+│   ├── ValueConverterInterface        # PHP-to-DB value converter contract
+│   ├── ValueConverterRegistry         # Registry managing multiple converters
+│   ├── BoolValueConverter             # bool → int (0/1)
+│   ├── DateTimeValueConverter         # DateTimeInterface → string
+│   ├── EnumValueConverter             # BackedEnum → backing value
+│   └── DtoExtractor                   # Extracts column/value pairs from DTOs
 ├── QueryBuilder\
 │   ├── QueryBuilder                   # Fluent SQL query builder
-│   └── QueryType                      # Query type enum (Select, Insert, Update, Delete)
+│   ├── QueryType                      # Query type enum (Select, Insert, Update, Delete)
+│   └── Compiler\
+│       ├── SqlCompilerInterface       # SQL compiler contract
+│       ├── SelectCompiler             # SELECT SQL generation
+│       ├── InsertCompiler             # INSERT SQL generation
+│       ├── UpdateCompiler             # UPDATE SQL generation
+│       └── DeleteCompiler             # DELETE SQL generation
 └── TypeCaster\
-    ├── TypeCasterInterface            # Type caster contract
+    ├── TypeCasterInterface            # Type caster contract (DB → PHP)
     ├── TypeCasterRegistry             # Registry managing multiple casters
     ├── ScalarTypeCaster               # int, float, bool, string
     ├── DateTimeTypeCaster             # DateTime, DateTimeImmutable, DateTimeInterface
