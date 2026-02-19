@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace AsceticSoft\Rowcast\QueryBuilder;
 
-use AsceticSoft\Rowcast\Connection;
+use AsceticSoft\Rowcast\ConnectionInterface;
+use AsceticSoft\Rowcast\QueryBuilder\Compiler\DeleteCompiler;
+use AsceticSoft\Rowcast\QueryBuilder\Compiler\InsertCompiler;
+use AsceticSoft\Rowcast\QueryBuilder\Compiler\SelectCompiler;
+use AsceticSoft\Rowcast\QueryBuilder\Compiler\UpdateCompiler;
 
 /**
  * Doctrine DBAL-like query builder.
@@ -55,14 +59,14 @@ class QueryBuilder
     private array $parameters = [];
 
     public function __construct(
-        private readonly Connection $connection,
+        private readonly ConnectionInterface $connection,
     ) {
     }
 
     /**
      * Returns the Connection this QueryBuilder is bound to.
      */
-    public function getConnection(): Connection
+    public function getConnection(): ConnectionInterface
     {
         return $this->connection;
     }
@@ -286,10 +290,31 @@ class QueryBuilder
     public function getSQL(): string
     {
         return match ($this->type) {
-            QueryType::Select => $this->getSelectSQL(),
-            QueryType::Insert => $this->getInsertSQL(),
-            QueryType::Update => $this->getUpdateSQL(),
-            QueryType::Delete => $this->getDeleteSQL(),
+            QueryType::Select => new SelectCompiler(
+                $this->select,
+                $this->from,
+                $this->join,
+                $this->where,
+                $this->groupBy,
+                $this->having,
+                $this->orderBy,
+                $this->maxResults,
+                $this->firstResult,
+                $this->connection->getDriverName(),
+            )->compile(),
+            QueryType::Insert => new InsertCompiler(
+                $this->insertTable,
+                $this->insertValues,
+            )->compile(),
+            QueryType::Update => new UpdateCompiler(
+                $this->updateTable,
+                $this->updateSet,
+                $this->where,
+            )->compile(),
+            QueryType::Delete => new DeleteCompiler(
+                $this->deleteTable,
+                $this->where,
+            )->compile(),
             null => throw new \LogicException('No query type (select/insert/update/delete) has been specified.'),
         };
     }
@@ -341,114 +366,10 @@ class QueryBuilder
     /**
      * Executes the query and returns an iterable that yields rows one at a time.
      *
-     * Uses PDO cursor-based fetching for memory-efficient iteration over large result sets.
-     * The underlying driver determines the cursor strategy:
-     * - MySQL: unbuffered queries
-     * - PostgreSQL: scrollable cursor
-     * - Other drivers: regular sequential fetch
-     *
      * @return iterable<int, array<string, mixed>>
      */
     public function toIterable(): iterable
     {
         return $this->connection->toIterable($this->getSQL(), $this->parameters);
-    }
-
-    private function getSelectSQL(): string
-    {
-        if ($this->from === null) {
-            throw new \LogicException('FROM clause is required for SELECT.');
-        }
-
-        $parts = [];
-
-        $parts[] = 'SELECT ' . ($this->select !== [] ? implode(', ', $this->select) : '*');
-        $parts[] = 'FROM ' . $this->from[0] . ($this->from[1] !== $this->from[0] ? ' ' . $this->from[1] : '');
-
-        foreach ($this->join as [$type, $fromAlias, $joinTable, $joinAlias, $condition]) {
-            $parts[] = $type . ' JOIN ' . $joinTable . ' ' . $joinAlias . ' ON ' . $condition;
-        }
-
-        if ($this->where !== []) {
-            $parts[] = 'WHERE ' . implode(' AND ', $this->where);
-        }
-
-        if ($this->groupBy !== []) {
-            $parts[] = 'GROUP BY ' . implode(', ', $this->groupBy);
-        }
-
-        if ($this->having !== []) {
-            $parts[] = 'HAVING ' . implode(' AND ', $this->having);
-        }
-
-        if ($this->orderBy !== []) {
-            $parts[] = 'ORDER BY ' . implode(', ', $this->orderBy);
-        }
-
-        $sql = implode(' ', $parts);
-
-        if ($this->maxResults !== null) {
-            $limit = $this->maxResults;
-            $offset = $this->firstResult ?? 0;
-
-            $driver = $this->connection->getPdo()->getAttribute(\PDO::ATTR_DRIVER_NAME);
-            if ($driver === 'sqlite' || $driver === 'mysql' || $driver === 'pgsql') {
-                $sql .= ' LIMIT ' . (int) $limit;
-                if ($offset > 0) {
-                    $sql .= ' OFFSET ' . $offset;
-                }
-            }
-        }
-
-        return $sql;
-    }
-
-    private function getInsertSQL(): string
-    {
-        if ($this->insertTable === null || $this->insertValues === []) {
-            throw new \LogicException('INSERT requires table and values.');
-        }
-
-        $columns = array_keys($this->insertValues);
-        $placeholders = array_values($this->insertValues);
-
-        return 'INSERT INTO ' . $this->insertTable
-            . ' (' . implode(', ', $columns) . ')'
-            . ' VALUES (' . implode(', ', $placeholders) . ')';
-    }
-
-    private function getUpdateSQL(): string
-    {
-        if ($this->updateTable === null || $this->updateSet === []) {
-            throw new \LogicException('UPDATE requires table and set values.');
-        }
-
-        $setParts = [];
-        foreach ($this->updateSet as $column => $placeholder) {
-            $setParts[] = $column . ' = ' . $placeholder;
-        }
-
-        $sql = 'UPDATE ' . $this->updateTable . ' SET ' . implode(', ', $setParts);
-
-        if ($this->where !== []) {
-            $sql .= ' WHERE ' . implode(' AND ', $this->where);
-        }
-
-        return $sql;
-    }
-
-    private function getDeleteSQL(): string
-    {
-        if ($this->deleteTable === null) {
-            throw new \LogicException('DELETE requires table.');
-        }
-
-        $sql = 'DELETE FROM ' . $this->deleteTable;
-
-        if ($this->where !== []) {
-            $sql .= ' WHERE ' . implode(' AND ', $this->where);
-        }
-
-        return $sql;
     }
 }

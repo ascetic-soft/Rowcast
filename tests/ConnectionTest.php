@@ -727,6 +727,13 @@ final class ConnectionTest extends TestCase
         self::assertSame(0, $connection->getTransactionNestingLevel());
     }
 
+    // -- getDriverName --
+
+    public function testGetDriverNameReturnsSqlite(): void
+    {
+        self::assertSame('sqlite', $this->connection->getDriverName());
+    }
+
     // -- helpers --
 
     private function createUsersTableOn(Connection $connection): void

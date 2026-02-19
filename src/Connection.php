@@ -10,7 +10,7 @@ use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
  * Thin wrapper around PDO providing convenience methods for query execution
  * and a factory for QueryBuilder instances.
  */
-final class Connection
+final class Connection implements ConnectionInterface
 {
     private int $transactionNestingLevel = 0;
 
@@ -293,6 +293,14 @@ final class Connection
                 $this->pdo->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true);
             }
         }
+    }
+
+    public function getDriverName(): string
+    {
+        /** @var string $driver */
+        $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+
+        return $driver;
     }
 
     /**

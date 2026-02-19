@@ -9,6 +9,9 @@ use AsceticSoft\Rowcast\Hydration\ReflectionHydrator;
 use AsceticSoft\Rowcast\Mapping\NameConverter\NameConverterInterface;
 use AsceticSoft\Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
 use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Persistence\DtoExtractor;
+use AsceticSoft\Rowcast\Persistence\ValueConverterInterface;
+use AsceticSoft\Rowcast\Persistence\ValueConverterRegistry;
 
 /**
  * Lightweight DataMapper for persisting and querying DTO objects.
@@ -22,15 +25,20 @@ use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
 final readonly class DataMapper
 {
     private HydratorInterface $hydrator;
-    private NameConverterInterface $nameConverter;
+    private DtoExtractor $dtoExtractor;
+    private ValueConverterInterface $valueConverter;
 
     public function __construct(
-        private Connection      $connection,
-        ?NameConverterInterface $nameConverter = null,
-        ?HydratorInterface      $hydrator = null,
+        private ConnectionInterface      $connection,
+        ?NameConverterInterface          $nameConverter = null,
+        ?HydratorInterface               $hydrator = null,
+        ?DtoExtractor                    $dtoExtractor = null,
+        ?ValueConverterInterface         $valueConverter = null,
     ) {
-        $this->nameConverter = $nameConverter ?? new SnakeCaseToCamelCaseConverter();
-        $this->hydrator = $hydrator ?? new ReflectionHydrator(nameConverter: $this->nameConverter);
+        $nameConverter ??= new SnakeCaseToCamelCaseConverter();
+        $this->valueConverter = $valueConverter ?? ValueConverterRegistry::createDefault();
+        $this->hydrator = $hydrator ?? new ReflectionHydrator(nameConverter: $nameConverter);
+        $this->dtoExtractor = $dtoExtractor ?? new DtoExtractor($nameConverter, $this->valueConverter);
     }
 
     /**
@@ -48,7 +56,7 @@ final readonly class DataMapper
     public function insert(string|ResultSetMapping $target, object $dto): string|false
     {
         [$table, $rsm] = $this->resolveWriteTarget($target);
-        $data = $this->extractData($dto, $rsm);
+        $data = $this->dtoExtractor->extract($dto, $rsm);
 
         if ($data === []) {
             throw new \LogicException('Cannot insert: no data extracted from the DTO.');
@@ -84,7 +92,7 @@ final readonly class DataMapper
     public function update(string|ResultSetMapping $target, object $dto, array $where): int
     {
         [$table, $rsm] = $this->resolveWriteTarget($target);
-        $data = $this->extractData($dto, $rsm);
+        $data = $this->dtoExtractor->extract($dto, $rsm);
 
         if ($data === []) {
             throw new \LogicException('Cannot update: no data extracted from the DTO.');
@@ -224,7 +232,7 @@ final readonly class DataMapper
     /**
      * Returns the underlying Connection instance.
      */
-    public function getConnection(): Connection
+    public function getConnection(): ConnectionInterface
     {
         return $this->connection;
     }
@@ -235,8 +243,6 @@ final readonly class DataMapper
 
     /**
      * Builds a SELECT QueryBuilder from read-target parameters.
-     *
-     * Shared by findAll, iterateAll, and findOne to avoid query-building duplication.
      *
      * @param class-string|ResultSetMapping $target
      * @param array<string, mixed>          $where
@@ -293,7 +299,6 @@ final readonly class DataMapper
             return [$table, $target];
         }
 
-        // String = explicit table name
         return [$target, null];
     }
 
@@ -319,15 +324,14 @@ final readonly class DataMapper
             return [$table, $target->getClassName(), $target];
         }
 
-        // String = class name; derive table name by convention
         return [$this->deriveTableName($target), $target, null];
     }
 
     /**
      * Derives a table name from a fully-qualified class name.
      *
-     * Convention: short class name → snake_case → append 's'.
-     * Examples: User → users, UserProfile → user_profiles
+     * Convention: short class name -> snake_case -> append 's'.
+     * Examples: User -> users, UserProfile -> user_profiles
      *
      * @param class-string $className
      */
@@ -335,88 +339,13 @@ final readonly class DataMapper
     {
         $shortName = new \ReflectionClass($className)->getShortName();
 
-        // CamelCase → snake_case (avoid leading underscore for first uppercase letter)
         $replaced = preg_replace('/(?<!^)[A-Z]/', '_$0', $shortName);
 
         return strtolower($replaced ?? $shortName) . 's';
     }
 
     /**
-     * Extracts column → value pairs from a DTO via Reflection.
-     *
-     * In RSM mode, only mapped fields are extracted.
-     * In auto mode, all properties are extracted with NameConverter-derived column names.
-     * Uninitialized properties are skipped.
-     *
-     * @return array<string, mixed>
-     */
-    private function extractData(object $dto, ?ResultSetMapping $rsm): array
-    {
-        $reflClass = new \ReflectionClass($dto);
-        $data = [];
-
-        if ($rsm !== null) {
-            foreach ($rsm->getFields() as $columnName => $propertyName) {
-                if (!$reflClass->hasProperty($propertyName)) {
-                    continue;
-                }
-
-                $reflProperty = $reflClass->getProperty($propertyName);
-
-                if (!$reflProperty->isInitialized($dto)) {
-                    continue;
-                }
-
-                $data[$columnName] = $this->convertValueForDb($reflProperty->getValue($dto));
-            }
-        } else {
-            foreach ($reflClass->getProperties() as $reflProperty) {
-                if (!$reflProperty->isInitialized($dto)) {
-                    continue;
-                }
-
-                $columnName = $this->nameConverter->toColumnName($reflProperty->getName());
-                $data[$columnName] = $this->convertValueForDb($reflProperty->getValue($dto));
-            }
-        }
-
-        return $data;
-    }
-
-    /**
-     * Converts a PHP value to a database-compatible value.
-     *
-     * - null → null
-     * - bool → int (0/1)
-     * - BackedEnum → its backing value
-     * - DateTimeInterface → 'Y-m-d H:i:s' formatted string
-     * - Scalars → pass-through
-     */
-    private function convertValueForDb(mixed $value): mixed
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        if (\is_bool($value)) {
-            return $value ? 1 : 0;
-        }
-
-        if ($value instanceof \BackedEnum) {
-            return $value->value;
-        }
-
-        if ($value instanceof \DateTimeInterface) {
-            return $value->format('Y-m-d H:i:s');
-        }
-
-        return $value;
-    }
-
-    /**
      * Applies WHERE conditions to a QueryBuilder from a column => value array.
-     *
-     * All conditions are joined with AND.
      *
      * @param array<string, mixed> $where       Column => value pairs
      * @param string               $paramPrefix Prefix for parameter names to avoid collisions
@@ -436,7 +365,7 @@ final readonly class DataMapper
                 $qb->andWhere($predicate);
             }
 
-            $qb->setParameter($paramName, $this->convertValueForDb($value));
+            $qb->setParameter($paramName, $this->valueConverter->convertForDb($value));
         }
     }
 }
