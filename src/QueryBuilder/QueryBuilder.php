@@ -279,6 +279,20 @@ class QueryBuilder
         return $this;
     }
 
+    /**
+     * @param array<string, mixed> $values column => placeholder or direct value
+     */
+    public function setValues(array $values): self
+    {
+        $this->updateSet = [];
+
+        foreach ($values as $column => $value) {
+            $this->set($column, $value);
+        }
+
+        return $this;
+    }
+
     // --- DELETE ---
 
     public function delete(string $table, ?string $alias = null): self

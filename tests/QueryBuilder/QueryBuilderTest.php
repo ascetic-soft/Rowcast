@@ -452,6 +452,60 @@ final class QueryBuilderTest extends TestCase
         self::assertSame('Direct', $name);
     }
 
+    public function testUpdateWithSetValuesUsingDirectValues(): void
+    {
+        $this->createUsersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+
+        $affected = $this->connection->createQueryBuilder()
+            ->update('users')
+            ->setValues([
+                'name' => 'SetValues',
+                'email' => 'setvalues@example.com',
+            ])
+            ->where('id = :id')
+            ->setParameter('id', 1)
+            ->executeStatement();
+
+        self::assertSame(1, $affected);
+
+        $row = $this->connection->fetchAssociative('SELECT name, email FROM users WHERE id = 1');
+        self::assertSame(['name' => 'SetValues', 'email' => 'setvalues@example.com'], $row);
+    }
+
+    public function testUpdateWithSetValuesUsingMixedValues(): void
+    {
+        $this->createUsersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+
+        $affected = $this->connection->createQueryBuilder()
+            ->update('users')
+            ->setValues([
+                'name' => ':name',
+                'email' => 'mixed-setvalues@example.com',
+            ])
+            ->where('id = :id')
+            ->setParameter('name', 'MixedSetValues')
+            ->setParameter('id', 1)
+            ->executeStatement();
+
+        self::assertSame(1, $affected);
+
+        $row = $this->connection->fetchAssociative('SELECT name, email FROM users WHERE id = 1');
+        self::assertSame(['name' => 'MixedSetValues', 'email' => 'mixed-setvalues@example.com'], $row);
+    }
+
+    public function testSetValuesResetsPreviousSetParts(): void
+    {
+        $sql = $this->connection->createQueryBuilder()
+            ->update('users')
+            ->set('name', ':name')
+            ->setValues(['email' => ':email'])
+            ->getSQL();
+
+        self::assertSame('UPDATE users SET email = :email', $sql);
+    }
+
     public function testUpdateWithMixedDirectValuesAndPlaceholder(): void
     {
         $this->createUsersTable();
@@ -922,6 +976,7 @@ final class QueryBuilderTest extends TestCase
 
         self::assertSame($qb, $qb->update('users'));
         self::assertSame($qb, $qb->set('name', ':name'));
+        self::assertSame($qb, $qb->setValues(['email' => ':email']));
     }
 
     public function testFluentApiDeleteReturnsSelf(): void
