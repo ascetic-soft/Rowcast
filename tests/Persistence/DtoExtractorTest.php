@@ -106,8 +106,8 @@ final class DtoExtractorTest extends TestCase
 
         $data = $this->extractor->extract($dto);
 
-        self::assertSame('2025-06-15 10:30:00', $data['created_at']);
-        self::assertSame('2025-06-16 12:00:00', $data['updated_at']);
+        self::assertSame('2025-06-15 10:30:00+00:00', $data['created_at']);
+        self::assertSame('2025-06-16 12:00:00+00:00', $data['updated_at']);
     }
 
     public function testExtractWithNullConverter(): void

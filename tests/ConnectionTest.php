@@ -121,6 +121,25 @@ final class ConnectionTest extends TestCase
         static::assertSame(1, $affected);
     }
 
+    public function testExecuteStatementAcceptsDateTimeInterfaceParams(): void
+    {
+        $this->connection->executeStatement(
+            'CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, starts_at TEXT NOT NULL)',
+        );
+        $startsAt = new \DateTimeImmutable('2026-03-06 21:43:36+03:00');
+
+        $affected = $this->connection->executeStatement(
+            'INSERT INTO events (starts_at) VALUES (:starts_at)',
+            ['starts_at' => $startsAt],
+        );
+
+        self::assertSame(1, $affected);
+        self::assertSame(
+            '2026-03-06 18:43:36+00:00',
+            $this->connection->fetchOne('SELECT starts_at FROM events WHERE id = 1'),
+        );
+    }
+
     // -- fetch helpers --
 
     public function testFetchAllAssociative(): void
@@ -483,6 +502,28 @@ final class ConnectionTest extends TestCase
 
         self::assertCount(1, $rows);
         self::assertSame('Bob', $rows[0]['name']);
+    }
+
+    public function testToIterableAcceptsDateTimeInterfaceParams(): void
+    {
+        $this->connection->executeStatement(
+            'CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, starts_at TEXT NOT NULL)',
+        );
+        $this->connection->executeStatement(
+            'INSERT INTO events (starts_at) VALUES (?)',
+            ['2026-03-06 18:43:36+00:00'],
+        );
+
+        $rows = [];
+        foreach ($this->connection->toIterable(
+            'SELECT starts_at FROM events WHERE starts_at = :starts_at',
+            ['starts_at' => new \DateTimeImmutable('2026-03-06 21:43:36+03:00')],
+        ) as $row) {
+            $rows[] = $row;
+        }
+
+        self::assertCount(1, $rows);
+        self::assertSame('2026-03-06 18:43:36+00:00', $rows[0]['starts_at']);
     }
 
     public function testToIterableReturnsEmptyIterableWhenNoRows(): void

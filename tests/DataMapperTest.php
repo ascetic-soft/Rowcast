@@ -113,8 +113,8 @@ final class DataMapperTest extends TestCase
         $this->mapper->insert('user_with_dates', $user);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM user_with_dates WHERE id = 1');
-        self::assertSame('2025-06-15 10:30:00', $row['created_at']);
-        self::assertSame('2025-06-15 10:30:00', $row['updated_at']);
+        self::assertSame('2025-06-15 10:30:00+00:00', $row['created_at']);
+        self::assertSame('2025-06-15 10:30:00+00:00', $row['updated_at']);
     }
 
     public function testInsertWithEnumConversion(): void
@@ -869,8 +869,8 @@ final class DataMapperTest extends TestCase
         $this->mapper->insert('user_with_dates', $user);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM user_with_dates WHERE id = 1');
-        self::assertSame('2025-01-01 00:00:00', $row['created_at']);
-        self::assertSame('2025-01-02 00:00:00', $row['updated_at']);
+        self::assertSame('2025-01-01 00:00:00+00:00', $row['created_at']);
+        self::assertSame('2025-01-02 00:00:00+00:00', $row['updated_at']);
 
         // Reading back with RSM should also work
         $rsm = new ResultSetMapping(UserWithDates::class, table: 'user_with_dates');
@@ -1038,8 +1038,8 @@ final class DataMapperTest extends TestCase
         self::assertSame(1, $affected);
 
         $row = $this->connection->fetchAssociative('SELECT * FROM user_with_dates WHERE id = 1');
-        self::assertSame('2025-06-15 12:00:00', $row['created_at']);
-        self::assertSame('2025-06-16 08:30:00', $row['updated_at']);
+        self::assertSame('2025-06-15 12:00:00+00:00', $row['created_at']);
+        self::assertSame('2025-06-16 08:30:00+00:00', $row['updated_at']);
     }
 
     public function testUpdateWithEnumConversion(): void

@@ -315,10 +315,11 @@ Rowcast automatically casts database values to the PHP types declared on your DT
 | `"3.14"`                | `float`                   | `3.14`                     |
 | `"1"` / `"0"`           | `bool`                    | `true` / `false`           |
 | `42`                    | `string`                  | `"42"`                     |
-| `"2025-06-15 10:30:00"` | `DateTimeImmutable`       | `DateTimeImmutable` object |
-| `"2025-06-15 10:30:00"` | `DateTimeInterface`       | `DateTimeImmutable` object |
-| `"2025-06-15 10:30:00"` | `DateTime`                | `DateTime` object          |
+| `"2025-06-15 10:30:00+00:00"` | `DateTimeImmutable`       | `DateTimeImmutable` object |
+| `"2025-06-15 10:30:00+00:00"` | `DateTimeInterface`       | `DateTimeImmutable` object |
+| `"2025-06-15 10:30:00+00:00"` | `DateTime`                | `DateTime` object          |
 | `"active"`              | `UserStatus` (BackedEnum) | `UserStatus::Active`       |
+| `'{"foo":"bar"}'`       | `array`                   | `['foo' => 'bar']`         |
 | `NULL`                  | `?int`, `?string`, etc.   | `null`                     |
 
 ### Write (PHP to DB)
@@ -326,14 +327,16 @@ Rowcast automatically casts database values to the PHP types declared on your DT
 | PHP value           | Database value                 |
 |---------------------|--------------------------------|
 | `true` / `false`    | `1` / `0`                      |
-| `DateTimeInterface` | `"Y-m-d H:i:s"` string         |
+| `DateTimeInterface` | `"Y-m-d H:i:sP"` (UTC) string  |
 | `BackedEnum`        | Backing value (`int`/`string`) |
+| `array` / `stdClass`| JSON string                    |
 | `null`              | `NULL`                         |
 | Scalars             | Passed through as-is           |
 
 ### Built-in Type Casters
 
 - **ScalarTypeCaster** — `int`, `float`, `bool`, `string`
+- **JsonTypeCaster** — `array` and `stdClass`
 - **DateTimeTypeCaster** — `DateTime`, `DateTimeImmutable`, `DateTimeInterface` (resolved to `DateTimeImmutable`)
 - **EnumTypeCaster** — any `BackedEnum`
 
@@ -402,13 +405,29 @@ $rows = $qb->select('u.id', 'u.name', 'p.title')
 ```php
 $qb = $connection->createQueryBuilder();
 
+// Direct values (short form)
+$qb->insert('users')
+    ->values([
+        'name'  => 'Alice',
+        'email' => 'alice@example.com',
+    ])
+    ->executeStatement();
+
+// Mixed mode:
+// - strings starting with ":" are treated as placeholders
+// - everything else is treated as direct value
 $qb->insert('users')
     ->values([
         'name'  => ':name',
-        'email' => ':email',
+        'email' => 'alice@example.com',
     ])
     ->setParameter('name', 'Alice')
-    ->setParameter('email', 'alice@example.com')
+    ->executeStatement();
+
+// Per-column API
+$qb->insert('users')
+    ->setValue('name', 'Alice')
+    ->setValue('email', 'alice@example.com')
     ->executeStatement();
 ```
 
@@ -417,6 +436,14 @@ $qb->insert('users')
 ```php
 $qb = $connection->createQueryBuilder();
 
+// Direct values (short form)
+$qb->update('users')
+    ->set('name', 'Alice Updated')
+    ->where('id = :id')
+    ->setParameter('id', 1)
+    ->executeStatement();
+
+// Placeholder mode
 $qb->update('users')
     ->set('name', ':name')
     ->where('id = :id')
@@ -534,7 +561,7 @@ $user = $mapper->findOne(UserDto::class, ['id' => 1]);
 
 ## Working with DateTime
 
-`DateTime`, `DateTimeImmutable`, and `DateTimeInterface` properties are automatically handled. When the property type is `DateTimeInterface`, the value is always resolved to `DateTimeImmutable`:
+`DateTime`, `DateTimeImmutable`, and `DateTimeInterface` properties are automatically handled. Values are normalized to UTC and stored in `Y-m-d H:i:sP` format. When the property type is `DateTimeInterface`, the value is always resolved to `DateTimeImmutable`:
 
 ```php
 class Post
@@ -551,7 +578,7 @@ $post->createdAt = new DateTimeImmutable();
 $post->updatedAt = new DateTimeImmutable();
 
 $mapper->insert('posts', $post);
-// Stored as: created_at = '2025-06-15 10:30:00', updated_at = '2025-06-15 10:30:00'
+// Stored as: created_at = '2025-06-15 10:30:00+00:00', updated_at = '2025-06-15 10:30:00+00:00'
 
 $found = $mapper->findOne(Post::class, ['id' => 1]);
 // $found->createdAt instanceof DateTimeImmutable
@@ -559,7 +586,7 @@ $found = $mapper->findOne(Post::class, ['id' => 1]);
 
 ## Custom Value Converter (PHP to DB)
 
-By default Rowcast converts `bool`, `BackedEnum`, and `DateTimeInterface` values when writing to the database. You can add custom converters for other types (e.g. UUID, JSON):
+By default Rowcast converts `bool`, `BackedEnum`, `DateTimeInterface`, and JSON-compatible values (`array`, `stdClass`) when writing to the database. You can add custom converters for other types (e.g. UUID):
 
 ```php
 use AsceticSoft\Rowcast\Persistence\ValueConverterInterface;
@@ -606,6 +633,7 @@ AsceticSoft\Rowcast\
 │   ├── BoolValueConverter             # bool → int (0/1)
 │   ├── DateTimeValueConverter         # DateTimeInterface → string
 │   ├── EnumValueConverter             # BackedEnum → backing value
+│   ├── JsonValueConverter             # array/stdClass → JSON string
 │   └── DtoExtractor                   # Extracts column/value pairs from DTOs
 ├── QueryBuilder\
 │   ├── QueryBuilder                   # Fluent SQL query builder
@@ -620,6 +648,7 @@ AsceticSoft\Rowcast\
     ├── TypeCasterInterface            # Type caster contract (DB → PHP)
     ├── TypeCasterRegistry             # Registry managing multiple casters
     ├── ScalarTypeCaster               # int, float, bool, string
+    ├── JsonTypeCaster                 # array, stdClass
     ├── DateTimeTypeCaster             # DateTime, DateTimeImmutable, DateTimeInterface
     └── EnumTypeCaster                 # BackedEnum
 ```

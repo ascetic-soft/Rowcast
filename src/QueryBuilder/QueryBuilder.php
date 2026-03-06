@@ -226,11 +226,29 @@ class QueryBuilder
     }
 
     /**
-     * @param array<string, string> $values column => placeholder
+     * @param array<string, mixed> $values column => placeholder or direct value
      */
     public function values(array $values): self
     {
-        $this->insertValues = $values;
+        $this->insertValues = [];
+
+        foreach ($values as $column => $value) {
+            $this->setValue($column, $value);
+        }
+
+        return $this;
+    }
+
+    public function setValue(string $column, mixed $value): self
+    {
+        if (\is_string($value) && str_starts_with($value, ':')) {
+            $this->insertValues[$column] = $value;
+
+            return $this;
+        }
+
+        $this->insertValues[$column] = ':' . $column;
+        $this->parameters[$column] = $value;
 
         return $this;
     }
@@ -246,9 +264,17 @@ class QueryBuilder
         return $this;
     }
 
-    public function set(string $column, string $value): self
+    public function set(string $column, mixed $value): self
     {
-        $this->updateSet[$column] = $value;
+        if (\is_string($value) && str_starts_with($value, ':')) {
+            $this->updateSet[$column] = $value;
+
+            return $this;
+        }
+
+        $paramName = 'v_' . $column;
+        $this->updateSet[$column] = ':' . $paramName;
+        $this->parameters[$paramName] = $value;
 
         return $this;
     }

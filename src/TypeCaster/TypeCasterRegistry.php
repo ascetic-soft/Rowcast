@@ -24,6 +24,7 @@ final class TypeCasterRegistry implements TypeCasterInterface
     {
         return new self([
             new ScalarTypeCaster(),
+            new JsonTypeCaster(),
             new DateTimeTypeCaster(),
             new EnumTypeCaster(),
         ]);

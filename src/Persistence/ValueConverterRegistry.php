@@ -23,6 +23,7 @@ final class ValueConverterRegistry implements ValueConverterInterface
             new BoolValueConverter(),
             new EnumValueConverter(),
             new DateTimeValueConverter(),
+            new JsonValueConverter(),
         ]);
     }
 

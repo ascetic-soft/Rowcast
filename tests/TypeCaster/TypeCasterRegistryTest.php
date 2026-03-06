@@ -33,6 +33,7 @@ final class TypeCasterRegistryTest extends TestCase
         self::assertTrue($this->registry->supports('float'));
         self::assertTrue($this->registry->supports('bool'));
         self::assertTrue($this->registry->supports('string'));
+        self::assertTrue($this->registry->supports('array'));
         self::assertTrue($this->registry->supports(DateTimeImmutable::class));
         self::assertTrue($this->registry->supports(\DateTime::class));
         self::assertTrue($this->registry->supports(Status::class));
@@ -111,6 +112,14 @@ final class TypeCasterRegistryTest extends TestCase
     {
         self::assertSame(42, $this->registry->cast('42', '?int'));
         self::assertSame('hello', $this->registry->cast('hello', '?string'));
+        self::assertSame(['a' => 1], $this->registry->cast('{"a":1}', '?array'));
+    }
+
+    public function testCastJsonStringToArray(): void
+    {
+        $result = $this->registry->cast('{"foo":"bar","count":3}', 'array');
+
+        self::assertSame(['foo' => 'bar', 'count' => 3], $result);
     }
 
     // --- Exception on unsupported type ---

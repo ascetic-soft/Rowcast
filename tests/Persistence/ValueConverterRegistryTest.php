@@ -40,6 +40,11 @@ final class ValueConverterRegistryTest extends TestCase
         self::assertFalse($this->registry->supports('hello'));
     }
 
+    public function testCreateDefaultIncludesJsonConverter(): void
+    {
+        self::assertTrue($this->registry->supports(['hello' => 'world']));
+    }
+
     public function testNullPassesThrough(): void
     {
         self::assertNull($this->registry->convertForDb(null));
@@ -60,7 +65,15 @@ final class ValueConverterRegistryTest extends TestCase
     {
         $dt = new \DateTimeImmutable('2025-01-01 12:00:00');
 
-        self::assertSame('2025-01-01 12:00:00', $this->registry->convertForDb($dt));
+        self::assertSame('2025-01-01 12:00:00+00:00', $this->registry->convertForDb($dt));
+    }
+
+    public function testConvertArrayToJson(): void
+    {
+        self::assertSame('{"active":true,"count":2}', $this->registry->convertForDb([
+            'active' => true,
+            'count' => 2,
+        ]));
     }
 
     public function testUnsupportedValuePassesThrough(): void

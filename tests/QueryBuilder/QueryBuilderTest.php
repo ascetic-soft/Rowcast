@@ -336,6 +336,53 @@ final class QueryBuilderTest extends TestCase
         self::assertSame('Jane', $name);
     }
 
+    public function testInsertWithDirectValuesInValues(): void
+    {
+        $this->createUsersTable();
+
+        $affected = $this->connection->createQueryBuilder()
+            ->insert('users')
+            ->values(['name' => 'Mark', 'email' => 'mark@example.com'])
+            ->executeStatement();
+
+        self::assertSame(1, $affected);
+
+        $name = $this->connection->fetchOne('SELECT name FROM users WHERE email = ?', ['mark@example.com']);
+        self::assertSame('Mark', $name);
+    }
+
+    public function testInsertWithSetValue(): void
+    {
+        $this->createUsersTable();
+
+        $affected = $this->connection->createQueryBuilder()
+            ->insert('users')
+            ->setValue('name', 'Mila')
+            ->setValue('email', 'mila@example.com')
+            ->executeStatement();
+
+        self::assertSame(1, $affected);
+
+        $name = $this->connection->fetchOne('SELECT name FROM users WHERE email = ?', ['mila@example.com']);
+        self::assertSame('Mila', $name);
+    }
+
+    public function testInsertWithMixedDirectValuesAndPlaceholder(): void
+    {
+        $this->createUsersTable();
+
+        $affected = $this->connection->createQueryBuilder()
+            ->insert('users')
+            ->values(['name' => ':name', 'email' => 'mixed@example.com'])
+            ->setParameter('name', 'Mixed')
+            ->executeStatement();
+
+        self::assertSame(1, $affected);
+
+        $row = $this->connection->fetchAssociative('SELECT name, email FROM users WHERE email = ?', ['mixed@example.com']);
+        self::assertSame(['name' => 'Mixed', 'email' => 'mixed@example.com'], $row);
+    }
+
     public function testGetSQLForInsert(): void
     {
         $qb = $this->connection->createQueryBuilder()
@@ -385,6 +432,62 @@ final class QueryBuilderTest extends TestCase
 
         $row = $this->connection->fetchAssociative('SELECT name, email FROM users WHERE id = 1');
         self::assertSame(['name' => 'Updated', 'email' => 'updated@example.com'], $row);
+    }
+
+    public function testUpdateWithDirectValuesInSet(): void
+    {
+        $this->createUsersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+
+        $affected = $this->connection->createQueryBuilder()
+            ->update('users')
+            ->set('name', 'Direct')
+            ->where('id = :id')
+            ->setParameter('id', 1)
+            ->executeStatement();
+
+        self::assertSame(1, $affected);
+
+        $name = $this->connection->fetchOne('SELECT name FROM users WHERE id = 1');
+        self::assertSame('Direct', $name);
+    }
+
+    public function testUpdateWithMixedDirectValuesAndPlaceholder(): void
+    {
+        $this->createUsersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+
+        $affected = $this->connection->createQueryBuilder()
+            ->update('users')
+            ->set('name', ':name')
+            ->set('email', 'updated@example.com')
+            ->where('id = :id')
+            ->setParameter('name', 'Renamed')
+            ->setParameter('id', 1)
+            ->executeStatement();
+
+        self::assertSame(1, $affected);
+
+        $row = $this->connection->fetchAssociative('SELECT name, email FROM users WHERE id = 1');
+        self::assertSame(['name' => 'Renamed', 'email' => 'updated@example.com'], $row);
+    }
+
+    public function testUpdateDirectValueDoesNotConflictWithWhereParameter(): void
+    {
+        $this->createUsersTable();
+        $this->insertUser('Alice', 'alice@example.com');
+
+        $affected = $this->connection->createQueryBuilder()
+            ->update('users')
+            ->set('email', 'alice@new.example.com')
+            ->where('email = :email')
+            ->setParameter('email', 'alice@example.com')
+            ->executeStatement();
+
+        self::assertSame(1, $affected);
+
+        $email = $this->connection->fetchOne('SELECT email FROM users WHERE id = 1');
+        self::assertSame('alice@new.example.com', $email);
     }
 
     public function testGetSQLForUpdate(): void
@@ -810,6 +913,7 @@ final class QueryBuilderTest extends TestCase
 
         self::assertSame($qb, $qb->insert('users'));
         self::assertSame($qb, $qb->values(['name' => ':name']));
+        self::assertSame($qb, $qb->setValue('email', ':email'));
     }
 
     public function testFluentApiUpdateReturnsSelf(): void

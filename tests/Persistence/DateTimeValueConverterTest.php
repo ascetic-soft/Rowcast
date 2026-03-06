@@ -38,16 +38,16 @@ final class DateTimeValueConverterTest extends TestCase
 
     public function testConvertDateTimeImmutable(): void
     {
-        $dt = new \DateTimeImmutable('2025-06-15 10:30:00');
+        $dt = new \DateTimeImmutable('2025-06-15 10:30:00+03:00');
 
-        self::assertSame('2025-06-15 10:30:00', $this->converter->convertForDb($dt));
+        self::assertSame('2025-06-15 07:30:00+00:00', $this->converter->convertForDb($dt));
     }
 
     public function testConvertDateTime(): void
     {
-        $dt = new \DateTime('2025-01-01 00:00:00');
+        $dt = new \DateTime('2025-01-01 00:00:00+03:00');
 
-        self::assertSame('2025-01-01 00:00:00', $this->converter->convertForDb($dt));
+        self::assertSame('2024-12-31 21:00:00+00:00', $this->converter->convertForDb($dt));
     }
 
     public function testCustomFormat(): void
