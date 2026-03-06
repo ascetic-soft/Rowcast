@@ -11,6 +11,9 @@ final class JsonTypeCaster implements TypeCasterInterface
         return $type === 'array';
     }
 
+    /**
+     * @return array<int|string, mixed>
+     */
     public function cast(mixed $value, string $type): array
     {
         if (\is_array($value)) {
