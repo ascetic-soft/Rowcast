@@ -4,100 +4,61 @@ declare(strict_types=1);
 
 namespace AsceticSoft\Rowcast;
 
-use AsceticSoft\Rowcast\Hydration\HydratorInterface;
-use AsceticSoft\Rowcast\Hydration\ReflectionHydrator;
-use AsceticSoft\Rowcast\Mapping\NameConverter\NameConverterInterface;
-use AsceticSoft\Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
-use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
-use AsceticSoft\Rowcast\Persistence\DtoExtractor;
-use AsceticSoft\Rowcast\Persistence\ValueConverterInterface;
-use AsceticSoft\Rowcast\Persistence\ValueConverterRegistry;
+use AsceticSoft\Rowcast\NameConverter\NameConverterInterface;
+use AsceticSoft\Rowcast\NameConverter\SnakeCaseToCamelCase;
+use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 
-/**
- * Lightweight DataMapper for persisting and querying DTO objects.
- *
- * Supports two modes:
- * - **Auto mode**: pass a table name (for write) or class-string (for read).
- *   Property ↔ column mapping is done via NameConverter.
- * - **Explicit mode**: pass a ResultSetMapping for full control over column ↔ property mapping
- *   and table name.
- */
 final readonly class DataMapper
 {
-    private HydratorInterface $hydrator;
-    private DtoExtractor $dtoExtractor;
-    private ValueConverterInterface $valueConverter;
+    private NameConverterInterface $nameConverter;
+    private TypeConverterInterface $typeConverter;
+    private Hydrator $hydrator;
+    private Extractor $extractor;
 
     public function __construct(
-        private ConnectionInterface      $connection,
-        ?NameConverterInterface          $nameConverter = null,
-        ?HydratorInterface               $hydrator = null,
-        ?DtoExtractor                    $dtoExtractor = null,
-        ?ValueConverterInterface         $valueConverter = null,
+        private ConnectionInterface $connection,
+        ?NameConverterInterface $nameConverter = null,
+        ?TypeConverterInterface $typeConverter = null,
     ) {
-        $nameConverter ??= new SnakeCaseToCamelCaseConverter();
-        $this->valueConverter = $valueConverter ?? ValueConverterRegistry::createDefault();
-        $this->hydrator = $hydrator ?? new ReflectionHydrator(nameConverter: $nameConverter);
-        $this->dtoExtractor = $dtoExtractor ?? new DtoExtractor($nameConverter, $this->valueConverter);
+        $this->nameConverter = $nameConverter ?? new SnakeCaseToCamelCase();
+        $this->typeConverter = $typeConverter ?? TypeConverterRegistry::defaults();
+        $this->hydrator = new Hydrator($this->typeConverter, $this->nameConverter);
+        $this->extractor = new Extractor($this->nameConverter, $this->typeConverter);
     }
 
-    /**
-     * Inserts a DTO into the database.
-     *
-     * Extracts property values from the DTO, converts property names to column names
-     * (via RSM or NameConverter), and builds an INSERT statement.
-     * Uninitialized properties are skipped (useful for auto-increment IDs).
-     *
-     * @param string|ResultSetMapping $target Table name (string) or ResultSetMapping (provides table + mapping)
-     * @param object                  $dto    The DTO object to insert
-     *
-     * @return string|false Last insert ID, or false on failure
-     */
-    public function insert(string|ResultSetMapping $target, object $dto): string|false
+    public function insert(string|Mapping $target, object $dto): string|false
     {
-        [$table, $rsm] = $this->resolveWriteTarget($target);
-        $data = $this->dtoExtractor->extract($dto, $rsm);
-
+        [$table] = $this->resolveTarget($target, $dto);
+        $data = $this->extract($target, $dto);
         if ($data === []) {
             throw new \LogicException('Cannot insert: no data extracted from the DTO.');
         }
 
-        $qb = $this->connection->createQueryBuilder();
-        $qb->insert($table);
-
-        $values = [];
+        $values = $this->createPlaceholders($data);
+        $qb = $this->connection->createQueryBuilder()
+            ->insert($table)
+            ->values($values)
+        ;
         foreach ($data as $column => $value) {
-            $values[$column] = ':' . $column;
             $qb->setParameter($column, $value);
         }
-
-        $qb->values($values);
         $qb->executeStatement();
 
         return $this->connection->lastInsertId();
     }
 
     /**
-     * Updates rows in the database using values from a DTO.
-     *
-     * Extracts property values from the DTO for the SET clause.
-     * The WHERE clause is built from the $where array (column => value, joined with AND).
-     *
-     * @param string|ResultSetMapping  $target Table name (string) or ResultSetMapping
-     * @param object                   $dto    The DTO object with new values
-     * @param array<string, mixed>     $where  WHERE conditions as column => value pairs
-     *
-     * @return int Number of affected rows
+     * @param array<string, mixed> $where
      */
-    public function update(string|ResultSetMapping $target, object $dto, array $where): int
+    public function update(string|Mapping $target, object $dto, array $where): int
     {
-        [$table, $rsm] = $this->resolveWriteTarget($target);
-        $data = $this->dtoExtractor->extract($dto, $rsm);
-
+        [$table] = $this->resolveTarget($target, $dto);
+        $data = $this->extract($target, $dto);
         if ($data === []) {
             throw new \LogicException('Cannot update: no data extracted from the DTO.');
         }
-
         if ($where === []) {
             throw new \LogicException('Cannot update: WHERE conditions are required.');
         }
@@ -117,151 +78,189 @@ final readonly class DataMapper
     }
 
     /**
-     * Deletes rows from the database.
-     *
-     * @param string|ResultSetMapping  $target Table name (string) or ResultSetMapping
-     * @param array<string, mixed>     $where  WHERE conditions as column => value pairs
-     *
-     * @return int Number of affected rows
+     * @param array<string, mixed> $where
      */
-    public function delete(string|ResultSetMapping $target, array $where): int
+    public function delete(string|Mapping $target, array $where): int
     {
-        [$table] = $this->resolveWriteTarget($target);
-
+        [$table] = $this->resolveTarget($target);
         if ($where === []) {
             throw new \LogicException('Cannot delete: WHERE conditions are required.');
         }
 
-        $qb = $this->connection->createQueryBuilder();
-        $qb->delete($table);
-
+        $qb = $this->connection->createQueryBuilder()->delete($table);
         $this->applyWhere($qb, $where);
 
         return $qb->executeStatement();
     }
 
     /**
-     * Finds all matching rows and hydrates them into DTO objects.
-     *
-     * @template T of object
-     *
-     * @param class-string<T>|ResultSetMapping $target  DTO class name or ResultSetMapping
-     * @param array<string, mixed>             $where   WHERE conditions as column => value pairs
-     * @param array<string, string>            $orderBy ORDER BY as column => direction ('ASC'|'DESC')
-     * @param int|null                         $limit   Maximum number of rows to return
-     * @param int|null                         $offset  Number of rows to skip
-     *
-     * @return list<T>
+     * @param array<string, mixed> $where
+     * @param array<string, string> $orderBy
+     * @return list<object>
      */
     public function findAll(
-        string|ResultSetMapping $target,
+        string|Mapping $target,
         array $where = [],
         array $orderBy = [],
         ?int $limit = null,
         ?int $offset = null,
     ): array {
-        [$qb, $className, $rsm] = $this->buildSelectQuery($target, $where, $orderBy, $limit, $offset);
-
+        [$qb, $className, $mapping] = $this->buildSelectQuery($target, $where, $orderBy, $limit, $offset);
         $rows = $qb->fetchAllAssociative();
 
-        /** @var list<T> */
-        return $this->hydrator->hydrateAll($className, $rows, $rsm);
+        return $this->hydrator->hydrateAll($className, $rows, $mapping);
     }
 
     /**
-     * Finds all matching rows and yields them as hydrated DTO objects one at a time.
-     *
-     * Uses PDO cursor-based fetching for memory-efficient iteration over large result sets.
-     * Each row is hydrated lazily — only when consumed from the iterable.
-     *
-     * @template T of object
-     *
-     * @param class-string<T>|ResultSetMapping $target  DTO class name or ResultSetMapping
-     * @param array<string, mixed>             $where   WHERE conditions as column => value pairs
-     * @param array<string, string>            $orderBy ORDER BY as column => direction ('ASC'|'DESC')
-     * @param int|null                         $limit   Maximum number of rows to return
-     * @param int|null                         $offset  Number of rows to skip
-     *
-     * @return iterable<int, T>
+     * @param array<string, mixed> $where
+     * @param array<string, string> $orderBy
+     * @return iterable<int, object>
      */
     public function iterateAll(
-        string|ResultSetMapping $target,
+        string|Mapping $target,
         array $where = [],
         array $orderBy = [],
         ?int $limit = null,
         ?int $offset = null,
     ): iterable {
-        [$qb, $className, $rsm] = $this->buildSelectQuery($target, $where, $orderBy, $limit, $offset);
+        [$qb, $className, $mapping] = $this->buildSelectQuery($target, $where, $orderBy, $limit, $offset);
 
         foreach ($qb->toIterable() as $row) {
-            /** @var T $object */
-            $object = $this->hydrator->hydrate($className, $row, $rsm);
-
-            yield $object;
+            yield $this->hydrator->hydrate($className, $row, $mapping);
         }
     }
 
     /**
-     * Finds a single row and hydrates it into a DTO object.
-     *
-     * @template T of object
-     *
-     * @param class-string<T>|ResultSetMapping $target DTO class name or ResultSetMapping
-     * @param array<string, mixed>             $where  WHERE conditions as column => value pairs
-     *
-     * @return T|null The hydrated DTO, or null if no row found
+     * @param array<string, mixed> $where
      */
-    public function findOne(
-        string|ResultSetMapping $target,
-        array $where = [],
-    ): object|null {
-        [$qb, $className, $rsm] = $this->buildSelectQuery($target, $where, limit: 1);
-
+    public function findOne(string|Mapping $target, array $where = []): ?object
+    {
+        [$qb, $className, $mapping] = $this->buildSelectQuery($target, $where, limit: 1);
         $row = $qb->fetchAssociative();
-
         if ($row === false) {
             return null;
         }
 
-        /** @var T $result */
-        $result = $this->hydrator->hydrate($className, $row, $rsm);
-
-        return $result;
+        return $this->hydrator->hydrate($className, $row, $mapping);
     }
 
     /**
-     * Returns the underlying Connection instance.
+     * @param array<string, mixed> $row
      */
+    public function hydrate(string|Mapping $target, array $row): object
+    {
+        [, $className, $mapping] = $this->resolveTarget($target);
+
+        return $this->hydrator->hydrate($className, $row, $mapping);
+    }
+
+    /**
+     * @param string|Mapping $target
+     * @param list<array<string, mixed>> $rows
+     * @return list<object>
+     */
+    public function hydrateAll(string|Mapping $target, array $rows): array
+    {
+        [, $className, $mapping] = $this->resolveTarget($target);
+
+        return $this->hydrator->hydrateAll($className, $rows, $mapping);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function extract(string|Mapping $target, object $dto): array
+    {
+        [, , $mapping] = $this->resolveTarget($target, $dto);
+
+        return $this->extractor->extract($dto, $mapping);
+    }
+
+    public function save(string|Mapping $target, object $dto, string ...$identityProperties): void
+    {
+        if ($identityProperties === []) {
+            throw new \LogicException('Cannot save: identity properties are required.');
+        }
+
+        [$table, , $mapping] = $this->resolveTarget($target, $dto);
+        $data = $this->extractor->extract($dto, $mapping);
+        $where = $this->buildWhereFromIdentityProperties($identityProperties, $data, $mapping);
+
+        $qb = $this->connection->createQueryBuilder()
+            ->select('1')
+            ->from($table)
+            ->setMaxResults(1)
+        ;
+        $this->applyWhere($qb, $where, 'w_');
+
+        if ($qb->fetchOne() === false) {
+            $this->insert($target, $dto);
+
+            return;
+        }
+
+        $this->update($target, $dto, $where);
+    }
+
+    public function upsert(string|Mapping $target, object $dto, string ...$conflictProperties): int
+    {
+        if ($conflictProperties === []) {
+            throw new \LogicException('Cannot upsert: conflict properties are required.');
+        }
+
+        [$table, , $mapping] = $this->resolveTarget($target, $dto);
+        $data = $this->extractor->extract($dto, $mapping);
+        if ($data === []) {
+            throw new \LogicException('Cannot upsert: no data extracted from the DTO.');
+        }
+
+        $conflictColumns = [];
+        foreach ($conflictProperties as $propertyName) {
+            $columnName = $this->resolveColumnName($propertyName, $mapping);
+            if (!\array_key_exists($columnName, $data)) {
+                throw new \LogicException(\sprintf('Conflict property "%s" is not extracted.', $propertyName));
+            }
+            $conflictColumns[] = $columnName;
+        }
+
+        $updateColumns = array_values(array_filter(
+            array_keys($data),
+            static fn (string $column): bool => !\in_array($column, $conflictColumns, true),
+        ));
+
+        $qb = $this->connection->createQueryBuilder()
+            ->upsert($table)
+            ->values($this->createPlaceholders($data))
+            ->onConflict(...$conflictColumns)
+            ->doUpdateSet($updateColumns)
+        ;
+        foreach ($data as $column => $value) {
+            $qb->setParameter($column, $value);
+        }
+
+        return $qb->executeStatement();
+    }
+
     public function getConnection(): ConnectionInterface
     {
         return $this->connection;
     }
 
-    // -----------------------------------------------------------------------
-    // Private helpers
-    // -----------------------------------------------------------------------
-
     /**
-     * Builds a SELECT QueryBuilder from read-target parameters.
-     *
-     * @param class-string|ResultSetMapping $target
-     * @param array<string, mixed>          $where
-     * @param array<string, string>         $orderBy
-     *
-     * @return array{0: QueryBuilder\QueryBuilder, 1: class-string, 2: ResultSetMapping|null}
+     * @param array<string, mixed> $where
+     * @param array<string, string> $orderBy
+     * @return array{0: QueryBuilder, 1: class-string, 2: Mapping|null}
      */
     private function buildSelectQuery(
-        string|ResultSetMapping $target,
+        string|Mapping $target,
         array $where = [],
         array $orderBy = [],
         ?int $limit = null,
         ?int $offset = null,
     ): array {
-        [$table, $className, $rsm] = $this->resolveReadTarget($target);
+        [$table, $className, $mapping] = $this->resolveTarget($target);
 
-        $qb = $this->connection->createQueryBuilder();
-        $qb->select('*')->from($table);
-
+        $qb = $this->connection->createQueryBuilder()->select('*')->from($table);
         $this->applyWhere($qb, $where);
 
         foreach ($orderBy as $column => $direction) {
@@ -276,84 +275,56 @@ final readonly class DataMapper
             $qb->setFirstResult($offset);
         }
 
-        return [$qb, $className, $rsm];
+        return [$qb, $className, $mapping];
     }
 
     /**
-     * Resolves the table name and optional RSM for write operations (insert/update/delete).
-     *
-     * @return array{0: string, 1: ResultSetMapping|null}
+     * @return array{0: string, 1: class-string, 2: Mapping|null}
      */
-    private function resolveWriteTarget(string|ResultSetMapping $target): array
+    private function resolveTarget(string|Mapping $target, ?object $dto = null): array
     {
-        if ($target instanceof ResultSetMapping) {
-            $table = $target->getTable();
+        if ($target instanceof Mapping) {
+            /** @var class-string $className */
+            $className = $target->getClassName();
 
-            if ($table === null) {
-                throw new \LogicException(
-                    'ResultSetMapping must have a table name for write operations. '
-                    . 'Pass the table name in the ResultSetMapping constructor.',
-                );
-            }
-
-            return [$table, $target];
+            return [$target->getTable(), $className, $target];
         }
 
-        return [$target, null];
-    }
-
-    /**
-     * Resolves table name, class name, and optional RSM for read operations (findAll/findOne).
-     *
-     * @param class-string|ResultSetMapping $target
-     *
-     * @return array{0: string, 1: class-string, 2: ResultSetMapping|null}
-     */
-    private function resolveReadTarget(string|ResultSetMapping $target): array
-    {
-        if ($target instanceof ResultSetMapping) {
-            $table = $target->getTable();
-
-            if ($table === null) {
-                throw new \LogicException(
-                    'ResultSetMapping must have a table name for read operations. '
-                    . 'Pass the table name in the ResultSetMapping constructor.',
-                );
-            }
-
-            return [$table, $target->getClassName(), $target];
+        if (class_exists($target)) {
+            /** @var class-string $target */
+            return [$this->deriveTableName($target), $target, null];
         }
 
-        return [$this->deriveTableName($target), $target, null];
+        if ($dto === null) {
+            throw new \LogicException(\sprintf('Unknown class-string target "%s".', $target));
+        }
+
+        $className = $dto::class;
+
+        return [$target, $className, null];
     }
 
     /**
-     * Derives a table name from a fully-qualified class name.
-     *
-     * Convention: short class name -> snake_case -> append 's'.
-     * Examples: User -> users, UserProfile -> user_profiles
-     *
      * @param class-string $className
      */
     private function deriveTableName(string $className): string
     {
         $shortName = new \ReflectionClass($className)->getShortName();
-
         $replaced = preg_replace('/(?<!^)[A-Z]/', '_$0', $shortName);
 
         return strtolower($replaced ?? $shortName) . 's';
     }
 
     /**
-     * Applies WHERE conditions to a QueryBuilder from a column => value array.
-     *
-     * @param array<string, mixed> $where       Column => value pairs
-     * @param string               $paramPrefix Prefix for parameter names to avoid collisions
+     * @param array<string, mixed> $where
      */
-    private function applyWhere(QueryBuilder\QueryBuilder $qb, array $where, string $paramPrefix = ''): void
+    private function applyWhere(QueryBuilder $qb, array $where, string $paramPrefix = ''): void
     {
-        $first = true;
+        if ($where === []) {
+            return;
+        }
 
+        $first = true;
         foreach ($where as $column => $value) {
             $paramName = $paramPrefix . $column;
             $predicate = $column . ' = :' . $paramName;
@@ -365,7 +336,46 @@ final readonly class DataMapper
                 $qb->andWhere($predicate);
             }
 
-            $qb->setParameter($paramName, $this->valueConverter->convertForDb($value));
+            $qb->setParameter($paramName, $this->typeConverter->toDb($value));
         }
+    }
+
+    /**
+     * @param array<int|string, string> $identityProperties
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function buildWhereFromIdentityProperties(array $identityProperties, array $data, ?Mapping $mapping): array
+    {
+        $where = [];
+
+        foreach ($identityProperties as $propertyName) {
+            $columnName = $this->resolveColumnName($propertyName, $mapping);
+            if (!\array_key_exists($columnName, $data)) {
+                throw new \LogicException(\sprintf('Identity property "%s" is not extracted.', $propertyName));
+            }
+            $where[$columnName] = $data[$columnName];
+        }
+
+        return $where;
+    }
+
+    private function resolveColumnName(string $propertyName, ?Mapping $mapping): string
+    {
+        return $mapping?->getColumnForProperty($propertyName) ?? $this->nameConverter->toColumnName($propertyName);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, string>
+     */
+    private function createPlaceholders(array $data): array
+    {
+        $values = [];
+        foreach (array_keys($data) as $column) {
+            $values[$column] = ':' . $column;
+        }
+
+        return $values;
     }
 }

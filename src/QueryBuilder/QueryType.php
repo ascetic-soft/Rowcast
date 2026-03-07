@@ -8,6 +8,7 @@ enum QueryType
 {
     case Select;
     case Insert;
+    case Upsert;
     case Update;
     case Delete;
 }

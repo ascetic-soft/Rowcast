@@ -65,7 +65,7 @@ final class Connection implements ConnectionInterface
     public function executeQuery(string $sql, array $params = []): \PDOStatement
     {
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($this->normalizeParams($params));
+        $stmt->execute($params);
 
         return $stmt;
     }
@@ -78,7 +78,7 @@ final class Connection implements ConnectionInterface
     public function executeStatement(string $sql, array $params = []): int
     {
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($this->normalizeParams($params));
+        $stmt->execute($params);
 
         return $stmt->rowCount();
     }
@@ -264,7 +264,6 @@ final class Connection implements ConnectionInterface
      */
     public function toIterable(string $sql, array $params = []): iterable
     {
-        $normalizedParams = $this->normalizeParams($params);
         $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
         $restoreBuffered = false;
 
@@ -279,7 +278,7 @@ final class Connection implements ConnectionInterface
                 $stmt = $this->pdo->prepare($sql);
             }
 
-            $stmt->execute($normalizedParams);
+            $stmt->execute($params);
 
             try {
                 while (false !== ($row = $stmt->fetch(\PDO::FETCH_ASSOC))) {
@@ -312,23 +311,4 @@ final class Connection implements ConnectionInterface
         return $this->pdo;
     }
 
-    /**
-     * @param array<string|int, mixed> $params
-     * @return array<string|int, mixed>
-     */
-    private function normalizeParams(array $params): array
-    {
-        static $utc;
-        $utc ??= new \DateTimeZone('UTC');
-
-        foreach ($params as $key => $value) {
-            if ($value instanceof \DateTimeInterface) {
-                $params[$key] = \DateTimeImmutable::createFromInterface($value)
-                    ->setTimezone($utc)
-                    ->format('Y-m-d H:i:sP');
-            }
-        }
-
-        return $params;
-    }
 }

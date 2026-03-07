@@ -8,6 +8,7 @@ use AsceticSoft\Rowcast\ConnectionInterface;
 use AsceticSoft\Rowcast\QueryBuilder\Compiler\DeleteCompiler;
 use AsceticSoft\Rowcast\QueryBuilder\Compiler\InsertCompiler;
 use AsceticSoft\Rowcast\QueryBuilder\Compiler\SelectCompiler;
+use AsceticSoft\Rowcast\QueryBuilder\Compiler\UpsertCompiler;
 use AsceticSoft\Rowcast\QueryBuilder\Compiler\UpdateCompiler;
 
 /**
@@ -47,6 +48,12 @@ class QueryBuilder
 
     /** @var array<string, string> column => placeholder */
     private array $insertValues = [];
+
+    /** @var list<string> */
+    private array $upsertConflictColumns = [];
+
+    /** @var list<string> */
+    private array $upsertUpdateColumns = [];
 
     private ?string $updateTable = null;
 
@@ -221,6 +228,19 @@ class QueryBuilder
         $this->type = QueryType::Insert;
         $this->insertTable = $table;
         $this->insertValues = [];
+        $this->upsertConflictColumns = [];
+        $this->upsertUpdateColumns = [];
+
+        return $this;
+    }
+
+    public function upsert(string $table): self
+    {
+        $this->type = QueryType::Upsert;
+        $this->insertTable = $table;
+        $this->insertValues = [];
+        $this->upsertConflictColumns = [];
+        $this->upsertUpdateColumns = [];
 
         return $this;
     }
@@ -249,6 +269,23 @@ class QueryBuilder
 
         $this->insertValues[$column] = ':' . $column;
         $this->parameters[$column] = $value;
+
+        return $this;
+    }
+
+    public function onConflict(string ...$columns): self
+    {
+        $this->upsertConflictColumns = array_values($columns);
+
+        return $this;
+    }
+
+    /**
+     * @param list<string> $columns
+     */
+    public function doUpdateSet(array $columns): self
+    {
+        $this->upsertUpdateColumns = $columns;
 
         return $this;
     }
@@ -345,6 +382,13 @@ class QueryBuilder
             QueryType::Insert => new InsertCompiler(
                 $this->insertTable,
                 $this->insertValues,
+            )->compile(),
+            QueryType::Upsert => new UpsertCompiler(
+                $this->insertTable,
+                $this->insertValues,
+                $this->upsertConflictColumns,
+                $this->upsertUpdateColumns,
+                $this->connection->getDriverName(),
             )->compile(),
             QueryType::Update => new UpdateCompiler(
                 $this->updateTable,
