@@ -269,11 +269,15 @@ final class Connection implements ConnectionInterface
 
         try {
             if ($driver === 'mysql') {
+                // @codeCoverageIgnoreStart
                 $this->pdo->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, false);
                 $restoreBuffered = true;
                 $stmt = $this->pdo->prepare($sql);
+                // @codeCoverageIgnoreEnd
             } elseif ($driver === 'pgsql') {
+                // @codeCoverageIgnoreStart
                 $stmt = $this->pdo->prepare($sql, [\PDO::ATTR_CURSOR => \PDO::CURSOR_SCROLL]);
+                // @codeCoverageIgnoreEnd
             } else {
                 $stmt = $this->pdo->prepare($sql);
             }
