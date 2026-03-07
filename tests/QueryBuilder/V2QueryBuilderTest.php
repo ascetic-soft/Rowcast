@@ -7,6 +7,7 @@ namespace AsceticSoft\Rowcast\Tests\QueryBuilder;
 use AsceticSoft\Rowcast\Connection;
 use AsceticSoft\Rowcast\ConnectionInterface;
 use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
+use AsceticSoft\Rowcast\Tests\Fixtures\UserStatus;
 use PHPUnit\Framework\TestCase;
 
 final class V2QueryBuilderTest extends TestCase
@@ -234,6 +235,38 @@ final class V2QueryBuilderTest extends TestCase
         );
     }
 
+    public function testWhereBackedEnumScalarValueIsNormalized(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+
+        $qb = $connection->createQueryBuilder()
+            ->select('id')
+            ->from('users')
+            ->where(['status' => UserStatus::Active]);
+
+        self::assertSame('SELECT id FROM users WHERE status = :w_status', $qb->getSQL());
+        self::assertSame(['w_status' => 'active'], $this->readQueryBuilderParameters($qb));
+    }
+
+    public function testWhereBackedEnumArrayValueGeneratesInWithScalarParameters(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+
+        $qb = $connection->createQueryBuilder()
+            ->select('id')
+            ->from('users')
+            ->where(['status' => [UserStatus::Active, UserStatus::Inactive]]);
+
+        self::assertSame(
+            'SELECT id FROM users WHERE status IN (:w_status, :w_status_1)',
+            $qb->getSQL(),
+        );
+        self::assertSame(
+            ['w_status' => 'active', 'w_status_1' => 'inactive'],
+            $this->readQueryBuilderParameters($qb),
+        );
+    }
+
     public function testWhereInIntegrationWithSqlite(): void
     {
         $connection = $this->createUsersConnection();
@@ -395,5 +428,19 @@ final class V2QueryBuilderTest extends TestCase
         );
 
         return $connection;
+    }
+
+    /**
+     * @return array<string|int, mixed>
+     */
+    private function readQueryBuilderParameters(QueryBuilder $qb): array
+    {
+        $reflection = new \ReflectionProperty(QueryBuilder::class, 'parameters');
+        $reflection->setAccessible(true);
+
+        /** @var array<string|int, mixed> $parameters */
+        $parameters = $reflection->getValue($qb);
+
+        return $parameters;
     }
 }

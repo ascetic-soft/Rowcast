@@ -12,6 +12,7 @@ use AsceticSoft\Rowcast\QueryBuilder\Compiler\UpsertCompiler;
 use AsceticSoft\Rowcast\QueryBuilder\Compiler\UpdateCompiler;
 use AsceticSoft\Rowcast\QueryBuilder\Dialect\DialectFactory;
 use AsceticSoft\Rowcast\QueryBuilder\Dialect\DialectInterface;
+use BackedEnum;
 
 /**
  * Doctrine DBAL-like query builder.
@@ -601,7 +602,7 @@ class QueryBuilder
             }
 
             $parameter = $this->nextWhereParameterName($field);
-            $this->parameters[$parameter] = $value;
+            $this->parameters[$parameter] = $this->normalizeValue($value);
 
             return $field . ' = :' . $parameter;
         }
@@ -616,7 +617,7 @@ class QueryBuilder
             }
 
             $parameter = $this->nextWhereParameterName($field);
-            $this->parameters[$parameter] = $value;
+            $this->parameters[$parameter] = $this->normalizeValue($value);
 
             return $field . ' ' . $operator . ' :' . $parameter;
         }
@@ -636,9 +637,9 @@ class QueryBuilder
 
             $bounds = array_values($value);
             $fromParam = $this->nextWhereParameterName($field);
-            $this->parameters[$fromParam] = $bounds[0];
+            $this->parameters[$fromParam] = $this->normalizeValue($bounds[0]);
             $toParam = $this->nextWhereParameterName($field);
-            $this->parameters[$toParam] = $bounds[1];
+            $this->parameters[$toParam] = $this->normalizeValue($bounds[1]);
 
             return $field . ' BETWEEN :' . $fromParam . ' AND :' . $toParam;
         }
@@ -646,7 +647,7 @@ class QueryBuilder
         $supportedOperators = $this->getDialect()->getSupportedOperators();
         if (isset($supportedOperators[$operator])) {
             $parameter = $this->nextWhereParameterName($field);
-            $this->parameters[$parameter] = $value;
+            $this->parameters[$parameter] = $this->normalizeValue($value);
 
             return $field . ' ' . $operator . ' :' . $parameter;
         }
@@ -666,11 +667,20 @@ class QueryBuilder
         $placeholders = [];
         foreach ($values as $value) {
             $parameter = $this->nextWhereParameterName($field);
-            $this->parameters[$parameter] = $value;
+            $this->parameters[$parameter] = $this->normalizeValue($value);
             $placeholders[] = ':' . $parameter;
         }
 
         return $field . ' ' . $keyword . ' (' . implode(', ', $placeholders) . ')';
+    }
+
+    private function normalizeValue(mixed $value): mixed
+    {
+        if ($value instanceof BackedEnum) {
+            return $value->value;
+        }
+
+        return $value;
     }
 
     private function nextWhereParameterName(string $field): string

@@ -314,6 +314,10 @@ Supported array operators:
 ->where(['status IN' => ['active']])             // explicit IN
 ->where(['status NOT IN' => ['banned']])         // explicit NOT IN
 
+// BackedEnum in WHERE (direct QueryBuilder usage)
+->where(['status' => UserStatus::Active])                               // status = :w_status, parameter value: 'active'
+->where(['status' => [UserStatus::Active, UserStatus::Inactive]])       // status IN (...), parameters: 'active', 'inactive'
+
 // Comparison operators
 ->where(['age >' => 18, 'age <=' => 65, 'score !=' => 0])
 
@@ -350,6 +354,7 @@ Notes:
 - Empty `IN` array compiles to `1 = 0` (always false).
 - Empty `NOT IN` array compiles to `1 = 1` (always true).
 - `ILIKE` and `NOT ILIKE` are PostgreSQL-specific.
+- `BackedEnum` values are normalized to backing scalar values in `WHERE` parameters (including `IN` / `NOT IN` arrays).
 
 Dialect-specific operator support:
 
