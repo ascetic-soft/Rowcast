@@ -93,7 +93,7 @@ When you pass a `class-string` (e.g. `User::class`) to read methods, Rowcast:
 
 1. Derives the table name from the class name (`User` → `users`, `UserProfile` → `user_profiles`)
 2. Executes the SQL query against the derived table
-3. Maps each column to a property using `SnakeCaseToCamelCaseConverter` (`created_at` → `createdAt`)
+3. Maps each column to a property using `SnakeCaseToCamelCase` (`created_at` → `createdAt`)
 4. Casts values to the declared PHP types (`string` → `int`, `"2025-01-01"` → `DateTimeImmutable`, etc.)
 5. Returns fully hydrated DTO objects
 
@@ -164,7 +164,7 @@ $found = $mapper->findOne(Post::class, ['id' => 1]);
 
 - [Connection]({{ '/docs/connection.html' | relative_url }}) — PDO wrapper, raw queries, transactions, and savepoints
 - [DataMapper]({{ '/docs/datamapper.html' | relative_url }}) — Full CRUD operations reference
-- [Mapping]({{ '/docs/mapping.html' | relative_url }}) — Auto mode vs explicit `ResultSetMapping`
-- [Type Casting]({{ '/docs/type-casting.html' | relative_url }}) — All built-in type casters and custom casters
+- [Mapping]({{ '/docs/mapping.html' | relative_url }}) — Auto mode vs explicit `Mapping`
+- [Type Casting]({{ '/docs/type-casting.html' | relative_url }}) — All built-in type converters and custom converters
 - [Query Builder]({{ '/docs/query-builder.html' | relative_url }}) — Fluent SQL query builder
 - [API Reference]({{ '/docs/api-reference.html' | relative_url }}) — Complete class and method reference

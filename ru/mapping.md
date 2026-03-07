@@ -8,7 +8,7 @@ parent: Русский
 # Маппинг
 {: .no_toc }
 
-Auto-режим с соглашениями, явный ResultSetMapping и пользовательские конвертеры имён.
+Auto-режим с соглашениями, явный `Mapping` и пользовательские конвертеры имён.
 {: .fs-6 .fw-300 }
 
 <details open markdown="block">
@@ -36,7 +36,7 @@ Auto-режим с соглашениями, явный ResultSetMapping и по
 
 ### Маппинг свойств-колонок
 
-По умолчанию `SnakeCaseToCamelCaseConverter` выполняет конвертацию:
+По умолчанию `SnakeCaseToCamelCase` выполняет конвертацию:
 
 | Имя колонки    | Имя свойства |
 |:---------------|:-------------|
@@ -46,39 +46,34 @@ Auto-режим с соглашениями, явный ResultSetMapping и по
 
 ---
 
-## ResultSetMapping (Explicit-режим)
+## Mapping (Explicit-режим)
 
-Когда имена колонок не соответствуют соглашениям или имя таблицы отличается, используйте `ResultSetMapping`:
+Когда имена колонок не соответствуют соглашениям или имя таблицы отличается, используйте `Mapping`:
 
 ```php
-use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Mapping;
 
-$rsm = new ResultSetMapping(User::class, table: 'custom_users');
-$rsm->addField('usr_nm', 'name')
-    ->addField('usr_email', 'email')
-    ->addField('id', 'id');
+$mapping = Mapping::explicit(User::class, 'custom_users')
+    ->column('usr_nm', 'name')
+    ->column('usr_email', 'email')
+    ->column('id', 'id');
 ```
 
 Используйте маппинг с любой операцией DataMapper:
 
 ```php
-$mapper->insert($rsm, $user);
-$user = $mapper->findOne($rsm, ['id' => 1]);
-$mapper->update($rsm, $user, ['id' => 1]);
-$mapper->delete($rsm, ['id' => 1]);
+$mapper->insert($mapping, $user);
+$user = $mapper->findOne($mapping, ['id' => 1]);
+$mapper->update($mapping, $user, ['id' => 1]);
+$mapper->delete($mapping, ['id' => 1]);
 ```
 
-### Создание из массива
+### Авто-режим с переопределениями
 
 ```php
-$rsm = ResultSetMapping::fromArray([
-    'class'  => User::class,
-    'table'  => 'custom_users',
-    'fields' => [
-        'usr_nm'    => 'name',
-        'usr_email' => 'email',
-    ],
-]);
+$mapping = Mapping::auto(User::class, 'custom_users')
+    ->column('usr_email', 'email')
+    ->ignore('internalNote');
 ```
 
 ---
@@ -87,26 +82,16 @@ $rsm = ResultSetMapping::fromArray([
 
 Конвертеры имён определяют, как имена свойств маппятся в имена колонок и наоборот.
 
-### SnakeCaseToCamelCaseConverter (по умолчанию)
+### SnakeCaseToCamelCase (по умолчанию)
 
 Конвертирует между `snake_case`-колонками и `camelCase`-свойствами:
 
 ```php
-use AsceticSoft\Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
+use AsceticSoft\Rowcast\NameConverter\SnakeCaseToCamelCase;
 
-$converter = new SnakeCaseToCamelCaseConverter();
+$converter = new SnakeCaseToCamelCase();
 $converter->toPropertyName('created_at'); // 'createdAt'
 $converter->toColumnName('createdAt');    // 'created_at'
-```
-
-### NullConverter
-
-Без конвертации — имена свойств используются как имена колонок:
-
-```php
-use AsceticSoft\Rowcast\Mapping\NameConverter\NullConverter;
-
-$mapper = new DataMapper($connection, nameConverter: new NullConverter());
 ```
 
 ### Пользовательский конвертер имён
@@ -114,7 +99,7 @@ $mapper = new DataMapper($connection, nameConverter: new NullConverter());
 Реализуйте `NameConverterInterface` для собственной логики:
 
 ```php
-use AsceticSoft\Rowcast\Mapping\NameConverter\NameConverterInterface;
+use AsceticSoft\Rowcast\NameConverter\NameConverterInterface;
 
 class PrefixedConverter implements NameConverterInterface
 {

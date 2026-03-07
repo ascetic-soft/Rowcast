@@ -53,9 +53,9 @@ Rowcast automatically casts database values to the PHP types declared on your DT
 
 ---
 
-## Built-in Type Casters
+## Built-in Type Converters
 
-### ScalarTypeCaster
+### ScalarConverter
 
 Handles `int`, `float`, `bool`, and `string` conversions:
 
@@ -66,7 +66,7 @@ Handles `int`, `float`, `bool`, and `string` conversions:
 // Database 42 → PHP string "42"
 ```
 
-### DateTimeTypeCaster
+### DateTimeConverter
 
 Handles `DateTime`, `DateTimeImmutable`, and `DateTimeInterface`:
 
@@ -86,7 +86,7 @@ class Post
 {: .note }
 When the property type is `DateTimeInterface`, the value is always resolved to `DateTimeImmutable`.
 
-### EnumTypeCaster
+### EnumConverter
 
 Handles any `BackedEnum`:
 
@@ -111,47 +111,50 @@ class UserDto
 
 ---
 
-## Custom Type Caster
+## Custom Type Converter
 
-Implement `TypeCasterInterface` to support additional types:
+Implement `TypeConverterInterface` to support additional types:
 
 ```php
-use AsceticSoft\Rowcast\TypeCaster\TypeCasterInterface;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface;
 
-class UuidTypeCaster implements TypeCasterInterface
+class UuidConverter implements TypeConverterInterface
 {
-    public function supports(string $type): bool
+    public function supports(string $phpType): bool
     {
-        return $type === Uuid::class;
+        return $phpType === Uuid::class;
     }
 
-    public function cast(mixed $value, string $type): Uuid
+    public function toPhp(mixed $value, string $phpType): Uuid
     {
         return new Uuid((string) $value);
+    }
+
+    public function toDb(mixed $value): mixed
+    {
+        return (string) $value;
     }
 }
 ```
 
-### Registering a custom caster
+### Registering a custom converter
 
 ```php
-use AsceticSoft\Rowcast\TypeCaster\TypeCasterRegistry;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 
-$registry = TypeCasterRegistry::createDefault();
-$registry->addCaster(new UuidTypeCaster());
+$registry = TypeConverterRegistry::defaults();
+$registry->add(new UuidConverter());
 ```
 
 ### Using the custom registry
 
-Pass a custom hydrator with the registry to `DataMapper`:
+Pass the registry directly to `DataMapper`:
 
 ```php
-use AsceticSoft\Rowcast\Hydration\ReflectionHydrator;
 use AsceticSoft\Rowcast\DataMapper;
 
-$hydrator = new ReflectionHydrator(typeCaster: $registry);
-$mapper = new DataMapper($connection, hydrator: $hydrator);
+$mapper = new DataMapper($connection, typeConverter: $registry);
 ```
 
 {: .tip }
-The `TypeCasterRegistry::createDefault()` method returns a registry with all built-in casters pre-registered. Use `addCaster()` to extend it with your own.
+The `TypeConverterRegistry::defaults()` method returns a registry with all built-in converters pre-registered. Use `add()` to extend it with your own.

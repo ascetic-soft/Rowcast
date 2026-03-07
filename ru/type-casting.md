@@ -54,9 +54,9 @@ Rowcast автоматически приводит значения БД к PHP
 
 ---
 
-## Встроенные кастеры типов
+## Встроенные конвертеры типов
 
-### ScalarTypeCaster
+### ScalarConverter
 
 Обрабатывает конвертацию `int`, `float`, `bool` и `string`:
 
@@ -67,7 +67,7 @@ Rowcast автоматически приводит значения БД к PHP
 // БД 42 → PHP string "42"
 ```
 
-### DateTimeTypeCaster
+### DateTimeConverter
 
 Обрабатывает `DateTime`, `DateTimeImmutable` и `DateTimeInterface`:
 
@@ -87,7 +87,7 @@ class Post
 {: .note }
 Когда тип свойства — `DateTimeInterface`, значение всегда преобразуется в `DateTimeImmutable`.
 
-### EnumTypeCaster
+### EnumConverter
 
 Обрабатывает любой `BackedEnum`:
 
@@ -112,47 +112,50 @@ class UserDto
 
 ---
 
-## Пользовательский кастер типов
+## Пользовательский конвертер типов
 
-Реализуйте `TypeCasterInterface` для поддержки дополнительных типов:
+Реализуйте `TypeConverterInterface` для поддержки дополнительных типов:
 
 ```php
-use AsceticSoft\Rowcast\TypeCaster\TypeCasterInterface;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface;
 
-class UuidTypeCaster implements TypeCasterInterface
+class UuidConverter implements TypeConverterInterface
 {
-    public function supports(string $type): bool
+    public function supports(string $phpType): bool
     {
-        return $type === Uuid::class;
+        return $phpType === Uuid::class;
     }
 
-    public function cast(mixed $value, string $type): Uuid
+    public function toPhp(mixed $value, string $phpType): Uuid
     {
         return new Uuid((string) $value);
+    }
+
+    public function toDb(mixed $value): mixed
+    {
+        return (string) $value;
     }
 }
 ```
 
-### Регистрация пользовательского кастера
+### Регистрация пользовательского конвертера
 
 ```php
-use AsceticSoft\Rowcast\TypeCaster\TypeCasterRegistry;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 
-$registry = TypeCasterRegistry::createDefault();
-$registry->addCaster(new UuidTypeCaster());
+$registry = TypeConverterRegistry::defaults();
+$registry->add(new UuidConverter());
 ```
 
 ### Использование пользовательского реестра
 
-Передайте пользовательский гидратор с реестром в `DataMapper`:
+Передайте реестр напрямую в `DataMapper`:
 
 ```php
-use AsceticSoft\Rowcast\Hydration\ReflectionHydrator;
 use AsceticSoft\Rowcast\DataMapper;
 
-$hydrator = new ReflectionHydrator(typeCaster: $registry);
-$mapper = new DataMapper($connection, hydrator: $hydrator);
+$mapper = new DataMapper($connection, typeConverter: $registry);
 ```
 
 {: .tip }
-Метод `TypeCasterRegistry::createDefault()` возвращает реестр со всеми встроенными кастерами. Используйте `addCaster()` для добавления своих.
+Метод `TypeConverterRegistry::defaults()` возвращает реестр со всеми встроенными конвертерами. Используйте `add()` для добавления своих.

@@ -24,9 +24,9 @@ parent: Русский
 
 `AsceticSoft\Rowcast\Connection`
 
-Тонкая PDO-обёртка с удобными методами и поддержкой транзакций.
+PDO-обёртка с хелперами для запросов, транзакциями (включая вложенные через savepoint) и фабрикой QueryBuilder.
 
-### Фабрика
+### Фабрика / конструктор
 
 ```php
 public static function create(
@@ -36,42 +36,24 @@ public static function create(
     array $options = [],
     bool $nestTransactions = false,
 ): self
-```
 
-### Конструктор
-
-```php
 public function __construct(\PDO $pdo, bool $nestTransactions = false)
 ```
 
-### Методы запросов
+### Основные методы
 
-| Метод | Возвращает | Описание |
-|:------|:-----------|:---------|
-| `executeQuery(string $sql, array $params = [])` | `\PDOStatement` | Выполнить SELECT-запрос |
-| `executeStatement(string $sql, array $params = [])` | `int` | Выполнить INSERT/UPDATE/DELETE, возвращает кол-во строк |
-| `fetchAllAssociative(string $sql, array $params = [])` | `array` | Получить все строки как ассоциативные массивы |
-| `fetchAssociative(string $sql, array $params = [])` | `array\|false` | Получить одну строку |
-| `fetchOne(string $sql, array $params = [])` | `mixed` | Получить скалярное значение |
-| `toIterable(string $sql, array $params = [])` | `iterable` | Вернуть результаты как генератор |
-| `lastInsertId(?string $name = null)` | `string\|false` | Получить последний вставленный ID |
-
-### Методы транзакций
-
-| Метод | Возвращает | Описание |
-|:------|:-----------|:---------|
-| `beginTransaction()` | `void` | Начать транзакцию (или savepoint) |
-| `commit()` | `void` | Зафиксировать транзакцию (или освободить savepoint) |
-| `rollBack()` | `void` | Откатить транзакцию (или до savepoint) |
-| `transactional(callable $callback)` | `mixed` | Выполнить в транзакции с авто-коммитом/откатом |
-| `getTransactionNestingLevel()` | `int` | Получить текущую глубину вложенности |
-
-### Другие методы
-
-| Метод | Возвращает | Описание |
-|:------|:-----------|:---------|
-| `createQueryBuilder()` | `QueryBuilder` | Создать новый построитель запросов |
-| `getPdo()` | `\PDO` | Получить базовый PDO-экземпляр |
+| Метод | Возвращает |
+|:------|:-----------|
+| `executeQuery(string $sql, array $params = [])` | `\PDOStatement` |
+| `executeStatement(string $sql, array $params = [])` | `int` |
+| `fetchAllAssociative(string $sql, array $params = [])` | `list<array<string, mixed>>` |
+| `fetchAssociative(string $sql, array $params = [])` | `array<string, mixed>\|false` |
+| `fetchOne(string $sql, array $params = [])` | `mixed` |
+| `toIterable(string $sql, array $params = [])` | `iterable<int, array<string, mixed>>` |
+| `transactional(callable $callback)` | `mixed` |
+| `createQueryBuilder()` | `QueryBuilder` |
+| `getDriverName()` | `string` |
+| `getPdo()` | `\PDO` |
 
 ---
 
@@ -83,68 +65,61 @@ public function __construct(\PDO $pdo, bool $nestTransactions = false)
 
 ```php
 public function __construct(
-    Connection $connection,
+    ConnectionInterface $connection,
     ?NameConverterInterface $nameConverter = null,
-    ?HydratorInterface $hydrator = null,
+    ?TypeConverterInterface $typeConverter = null,
 )
 ```
 
-### Методы
+### Основные методы
 
-| Метод | Возвращает | Описание |
-|:------|:-----------|:---------|
-| `insert(string\|ResultSetMapping $target, object $dto)` | `string\|false` | Вставить DTO, возвращает последний ID |
-| `update(string\|ResultSetMapping $target, object $dto, array $where)` | `int` | Обновить строки, возвращает кол-во |
-| `delete(string\|ResultSetMapping $target, array $where)` | `int` | Удалить строки, возвращает кол-во |
-| `findAll(string\|ResultSetMapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null)` | `array` | Найти все строки как DTO |
-| `iterateAll(string\|ResultSetMapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null)` | `iterable` | Итерировать строки как DTO (генератор) |
-| `findOne(string\|ResultSetMapping $target, array $where = [])` | `object\|null` | Найти одну строку как DTO |
-| `getConnection()` | `Connection` | Получить подключение |
+| Метод | Возвращает |
+|:------|:-----------|
+| `insert(string\|Mapping $target, object $dto)` | `string\|false` |
+| `batchInsert(string\|Mapping $target, array $dtos, ?int $maxBindParameters = null)` | `void` |
+| `update(string\|Mapping $target, object $dto, array $where)` | `int` |
+| `batchUpdate(string\|Mapping $target, array $dtos, array $identityProperties, ?int $maxBindParameters = null)` | `void` |
+| `delete(string\|Mapping $target, array $where)` | `int` |
+| `findAll(string\|Mapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null)` | `list<object>` |
+| `iterateAll(string\|Mapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null)` | `iterable<int, object>` |
+| `findOne(string\|Mapping $target, array $where = [])` | `object\|null` |
+| `save(string\|Mapping $target, object $dto, string ...$identityProperties)` | `void` |
+| `upsert(string\|Mapping $target, object $dto, string ...$conflictProperties)` | `int` |
+| `batchUpsert(string\|Mapping $target, array $dtos, array $conflictProperties, ?int $maxBindParameters = null)` | `void` |
+| `hydrate(string\|Mapping $target, array $row)` | `object` |
+| `hydrateAll(string\|Mapping $target, array $rows)` | `list<object>` |
+| `extract(string\|Mapping $target, object $dto)` | `array<string, mixed>` |
+| `getConnection()` | `ConnectionInterface` |
 
 ---
 
-## ResultSetMapping
+## Mapping
 
-`AsceticSoft\Rowcast\Mapping\ResultSetMapping`
+`AsceticSoft\Rowcast\Mapping`
 
-### Конструктор
-
-```php
-public function __construct(string $className, ?string $table = null)
-```
-
-### Методы
-
-| Метод | Возвращает | Описание |
-|:------|:-----------|:---------|
-| `addField(string $column, string $property)` | `self` | Замаппить колонку на свойство |
-| `getClassName()` | `string` | Получить имя DTO-класса |
-| `getTable()` | `?string` | Получить имя таблицы |
-| `getFields()` | `array` | Получить все маппинги полей |
-
-### Статическая фабрика
+### Фабрики
 
 ```php
-public static function fromArray(array $config): self
+public static function auto(string $className, string $table): self
+public static function explicit(string $className, string $table): self
 ```
 
-Формат массива:
+### Основные методы
 
-```php
-[
-    'class'  => User::class,
-    'table'  => 'custom_users',
-    'fields' => [
-        'column_name' => 'propertyName',
-    ],
-]
-```
+| Метод | Возвращает |
+|:------|:-----------|
+| `column(string $columnName, string $propertyName)` | `self` |
+| `ignore(string ...$properties)` | `self` |
+| `getClassName()` | `string` |
+| `getTable()` | `string` |
+| `isAutoDiscover()` | `bool` |
+| `getColumns()` | `array<string, string>` |
 
 ---
 
 ## NameConverterInterface
 
-`AsceticSoft\Rowcast\Mapping\NameConverter\NameConverterInterface`
+`AsceticSoft\Rowcast\NameConverter\NameConverterInterface`
 
 ```php
 interface NameConverterInterface
@@ -154,67 +129,38 @@ interface NameConverterInterface
 }
 ```
 
-### Реализации
-
-| Класс | Описание |
-|:------|:---------|
-| `SnakeCaseToCamelCaseConverter` | `snake_case` ↔ `camelCase` (по умолчанию) |
-| `NullConverter` | Без конвертации (pass-through) |
+Реализация по умолчанию: `SnakeCaseToCamelCase`.
 
 ---
 
-## HydratorInterface
+## TypeConverterInterface
 
-`AsceticSoft\Rowcast\Hydration\HydratorInterface`
+`AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface`
 
 ```php
-interface HydratorInterface
+interface TypeConverterInterface
 {
-    public function hydrate(string $className, array $row, ?ResultSetMapping $rsm = null): object;
-    public function hydrateAll(string $className, array $rows, ?ResultSetMapping $rsm = null): array;
+    public function supports(string $phpType): bool;
+    public function toPhp(mixed $value, string $phpType): mixed;
+    public function toDb(mixed $value): mixed;
 }
 ```
 
-### Реализации
-
-| Класс | Описание |
-|:------|:---------|
-| `ReflectionHydrator` | Гидратация на основе Reflection с приведением типов (по умолчанию) |
+Встроенные конвертеры: `ScalarConverter`, `BoolConverter`, `DateTimeConverter`, `JsonConverter`, `EnumConverter`.
 
 ---
 
-## TypeCasterInterface
+## TypeConverterRegistry
 
-`AsceticSoft\Rowcast\TypeCaster\TypeCasterInterface`
+`AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry`
 
-```php
-interface TypeCasterInterface
-{
-    public function supports(string $type): bool;
-    public function cast(mixed $value, string $type): mixed;
-}
-```
-
-### Встроенные реализации
-
-| Класс | Поддерживаемые типы |
-|:------|:--------------------|
-| `ScalarTypeCaster` | `int`, `float`, `bool`, `string` |
-| `DateTimeTypeCaster` | `DateTime`, `DateTimeImmutable`, `DateTimeInterface` |
-| `EnumTypeCaster` | Любой `BackedEnum` |
-
----
-
-## TypeCasterRegistry
-
-`AsceticSoft\Rowcast\TypeCaster\TypeCasterRegistry`
-
-| Метод | Возвращает | Описание |
-|:------|:-----------|:---------|
-| `static createDefault()` | `self` | Создать со всеми встроенными кастерами |
-| `addCaster(TypeCasterInterface $caster)` | `void` | Зарегистрировать пользовательский кастер |
-| `supports(string $type)` | `bool` | Проверить поддержку типа |
-| `cast(mixed $value, string $type)` | `mixed` | Привести значение к указанному типу |
+| Метод | Возвращает |
+|:------|:-----------|
+| `static defaults()` | `self` |
+| `add(TypeConverterInterface $converter)` | `self` |
+| `supports(string $phpType)` | `bool` |
+| `toPhp(mixed $value, string $phpType)` | `mixed` |
+| `toDb(mixed $value)` | `mixed` |
 
 ---
 
@@ -231,9 +177,11 @@ interface TypeCasterInterface
 | `leftJoin(string $from, string $table, string $alias, string $condition)` | `self` |
 | `innerJoin(string $from, string $table, string $alias, string $condition)` | `self` |
 | `rightJoin(string $from, string $table, string $alias, string $condition)` | `self` |
-| `where(string $expression)` | `self` |
-| `andWhere(string $expression)` | `self` |
-| `orWhere(string $expression)` | `self` |
+| `where(string\|array $expression)` | `self` |
+| `andWhere(string\|array $expression)` | `self` |
+| `orWhere(string\|array $expression)` | `self` |
+| `whereOr(array ...$groups)` | `self` |
+| `andWhereOr(array ...$groups)` | `self` |
 | `groupBy(string ...$columns)` | `self` |
 | `having(string $expression)` | `self` |
 | `orderBy(string $column, string $direction = 'ASC')` | `self` |
@@ -247,6 +195,9 @@ interface TypeCasterInterface
 |:------|:-----------|
 | `insert(string $table)` | `self` |
 | `values(array $values)` | `self` |
+| `upsert(string $table)` | `self` |
+| `onConflict(string ...$columns)` | `self` |
+| `doUpdateSet(array $columns)` | `self` |
 
 ### UPDATE
 
@@ -284,6 +235,7 @@ enum QueryType
 {
     case Select;
     case Insert;
+    case Upsert;
     case Update;
     case Delete;
 }
@@ -296,23 +248,22 @@ enum QueryType
 ```
 AsceticSoft\Rowcast\
 ├── Connection                          # PDO-обёртка с удобными методами
-├── DataMapper                          # Основной DataMapper (CRUD-операции)
-├── Hydration\
-│   ├── HydratorInterface              # Контракт гидратора
-│   └── ReflectionHydrator             # Гидратор на основе Reflection
-├── Mapping\
-│   ├── ResultSetMapping               # Явный маппинг колонок ↔ свойств
-│   └── NameConverter\
-│       ├── NameConverterInterface     # Контракт конвертера имён
-│       ├── SnakeCaseToCamelCaseConverter  # snake_case ↔ camelCase (по умолч.)
-│       └── NullConverter              # Без конвертации (pass-through)
+├── DataMapper                          # Основной DataMapper (CRUD + batch + upsert)
+├── Hydrator                            # Reflection-гидратор
+├── Extractor                           # Извлечение DTO -> строка БД
+├── Mapping                             # Модель auto/explicit-маппинга
+├── NameConverter\
+│   ├── NameConverterInterface          # Контракт конвертера имён
+│   └── SnakeCaseToCamelCase            # snake_case ↔ camelCase (по умолч.)
 ├── QueryBuilder\
 │   ├── QueryBuilder                   # Fluent SQL-построитель
 │   └── QueryType                      # Enum типа запроса
-└── TypeCaster\
-    ├── TypeCasterInterface            # Контракт кастера типов
-    ├── TypeCasterRegistry             # Реестр, управляющий кастерами
-    ├── ScalarTypeCaster               # int, float, bool, string
-    ├── DateTimeTypeCaster             # DateTime, DateTimeImmutable
-    └── EnumTypeCaster                 # BackedEnum
+└── TypeConverter\
+    ├── TypeConverterInterface         # Контракт конвертера типов
+    ├── TypeConverterRegistry          # Реестр конвертеров
+    ├── ScalarConverter                # int, float, string
+    ├── BoolConverter                  # bool <-> 0/1
+    ├── DateTimeConverter              # DateTimeInterface
+    ├── JsonConverter                  # array <-> JSON
+    └── EnumConverter                  # BackedEnum
 ```

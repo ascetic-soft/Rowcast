@@ -25,107 +25,44 @@ Hydration is the process of converting raw database rows (associative arrays) in
 
 ---
 
-## ReflectionHydrator (Default)
+## Built-in Hydration
 
-The built-in `ReflectionHydrator`:
+Hydration is performed by Rowcast's built-in `Hydrator`:
 
 1. Creates a new instance of the DTO class without calling the constructor
 2. Maps each column value to the corresponding property
-3. Casts values to the declared PHP types using the `TypeCasterRegistry`
+3. Converts values to declared PHP types using `TypeConverterInterface`
 4. Sets the property values via Reflection
 
 ```php
-use AsceticSoft\Rowcast\Hydration\ReflectionHydrator;
+use AsceticSoft\Rowcast\DataMapper;
 
-$hydrator = new ReflectionHydrator();
+$mapper = new DataMapper($connection);
 
 // Hydrate a single row
-$user = $hydrator->hydrate(User::class, [
+$user = $mapper->hydrate(User::class, [
     'id' => 1,
     'name' => 'Alice',
     'email' => 'alice@example.com',
 ]);
 
 // Hydrate multiple rows
-$users = $hydrator->hydrateAll(User::class, $rows);
+$users = $mapper->hydrateAll(User::class, $rows);
 ```
 
-### Custom TypeCaster registry
+### With custom mapping
 
 ```php
-use AsceticSoft\Rowcast\TypeCaster\TypeCasterRegistry;
+use AsceticSoft\Rowcast\Mapping;
 
-$registry = TypeCasterRegistry::createDefault();
-$registry->addCaster(new UuidTypeCaster());
+$mapping = Mapping::explicit(User::class, 'users')
+    ->column('usr_email', 'email');
 
-$hydrator = new ReflectionHydrator(typeCaster: $registry);
-```
-
----
-
-## Custom Hydrator
-
-Implement `HydratorInterface` to customize how rows are converted to objects:
-
-```php
-use AsceticSoft\Rowcast\Hydration\HydratorInterface;
-use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
-
-class MyHydrator implements HydratorInterface
-{
-    public function hydrate(
-        string $className,
-        array $row,
-        ?ResultSetMapping $rsm = null,
-    ): object {
-        // your custom logic
-    }
-
-    public function hydrateAll(
-        string $className,
-        array $rows,
-        ?ResultSetMapping $rsm = null,
-    ): array {
-        return array_map(
-            fn(array $row) => $this->hydrate($className, $row, $rsm),
-            $rows,
-        );
-    }
-}
-```
-
-### Using a custom hydrator
-
-```php
-$mapper = new DataMapper($connection, hydrator: new MyHydrator());
-```
-
----
-
-## HydratorInterface
-
-```php
-interface HydratorInterface
-{
-    /**
-     * Hydrate a single row into an object.
-     */
-    public function hydrate(
-        string $className,
-        array $row,
-        ?ResultSetMapping $rsm = null,
-    ): object;
-
-    /**
-     * Hydrate multiple rows into an array of objects.
-     */
-    public function hydrateAll(
-        string $className,
-        array $rows,
-        ?ResultSetMapping $rsm = null,
-    ): array;
-}
+$user = $mapper->hydrate($mapping, [
+    'id' => 1,
+    'usr_email' => 'alice@example.com',
+]);
 ```
 
 {: .tip }
-A custom hydrator is useful when you need constructor-based initialization, validation, or integration with a specific framework.
+The same hydration pipeline is used by `findOne()`, `findAll()`, and `iterateAll()`.

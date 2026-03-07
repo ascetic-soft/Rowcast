@@ -34,7 +34,7 @@ Rowcast — это современный **DataMapper** для PHP 8.4+ без 
 - **Нулевые внешние зависимости** — требуется только PHP 8.4 и расширение PDO
 - **Автоматический маппинг DTO** — строки БД гидратируются в типизированные PHP-объекты через Reflection
 - **Приведение типов** — автоматическая конвертация между PHP и типами БД (`DateTime`, `BackedEnum`, скаляры)
-- **Два режима маппинга** — Auto-режим с соглашениями или Explicit-режим с `ResultSetMapping`
+- **Два режима маппинга** — Auto-режим с соглашениями или Explicit-режим с `Mapping`
 - **Fluent-построитель запросов** — построение сложных SQL-запросов с цепочечным API
 - **Конвертация snake-to-camel** — колонки в `snake_case` маппятся в `camelCase`-свойства по умолчанию
 - **Вложенные транзакции** — поддержка вложенных транзакций на основе savepoints
@@ -119,11 +119,11 @@ composer require ascetic-soft/rowcast
   </div>
   <div class="grid-item">
     <h3><a href="{{ '/ru/mapping.html' | relative_url }}">Маппинг</a></h3>
-    <p>Auto-режим, ResultSetMapping и конвертеры имён.</p>
+    <p>Auto-режим, `Mapping` и конвертеры имён.</p>
   </div>
   <div class="grid-item">
     <h3><a href="{{ '/ru/type-casting.html' | relative_url }}">Приведение типов</a></h3>
-    <p>Скаляры, DateTime, BackedEnum и пользовательские кастеры.</p>
+    <p>Скаляры, DateTime, BackedEnum и пользовательские конвертеры типов.</p>
   </div>
   <div class="grid-item">
     <h3><a href="{{ '/ru/query-builder.html' | relative_url }}">Построитель запросов</a></h3>

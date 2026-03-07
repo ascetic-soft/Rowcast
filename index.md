@@ -33,7 +33,7 @@ Rowcast is a modern, zero-dependency **DataMapper** for PHP 8.4+. It maps databa
 - **Zero external dependencies** — Only PHP 8.4 and the PDO extension required
 - **Automatic DTO mapping** — Database rows hydrated to typed PHP objects via Reflection
 - **Type casting** — Automatic conversion between PHP and database types (`DateTime`, `BackedEnum`, scalars)
-- **Two mapping modes** — Auto mode with conventions or Explicit mode with `ResultSetMapping`
+- **Two mapping modes** — Auto mode with conventions or Explicit mode with `Mapping`
 - **Fluent query builder** — Build complex SQL queries with a chainable API
 - **Snake-to-camel conversion** — `snake_case` columns map to `camelCase` properties by default
 - **Nested transactions** — Savepoint-based transaction nesting support
@@ -118,11 +118,11 @@ composer require ascetic-soft/rowcast
   </div>
   <div class="grid-item">
     <h3><a href="{{ '/docs/mapping.html' | relative_url }}">Mapping</a></h3>
-    <p>Auto mode, explicit ResultSetMapping, and name converters.</p>
+    <p>Auto mode, explicit `Mapping`, and name converters.</p>
   </div>
   <div class="grid-item">
     <h3><a href="{{ '/docs/type-casting.html' | relative_url }}">Type Casting</a></h3>
-    <p>Scalars, DateTime, BackedEnum, and custom type casters.</p>
+    <p>Scalars, DateTime, BackedEnum, and custom type converters.</p>
   </div>
   <div class="grid-item">
     <h3><a href="{{ '/docs/query-builder.html' | relative_url }}">Query Builder</a></h3>

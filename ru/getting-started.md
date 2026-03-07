@@ -94,7 +94,7 @@ $mapper->delete('users', ['id' => $user->id]);
 
 1. Определяет имя таблицы из имени класса (`User` → `users`, `UserProfile` → `user_profiles`)
 2. Выполняет SQL-запрос к полученной таблице
-3. Маппит каждую колонку в свойство через `SnakeCaseToCamelCaseConverter` (`created_at` → `createdAt`)
+3. Маппит каждую колонку в свойство через `SnakeCaseToCamelCase` (`created_at` → `createdAt`)
 4. Приводит значения к объявленным PHP-типам (`string` → `int`, `"2025-01-01"` → `DateTimeImmutable` и т.д.)
 5. Возвращает полностью гидратированные DTO-объекты
 
@@ -165,7 +165,7 @@ $found = $mapper->findOne(Post::class, ['id' => 1]);
 
 - [Connection]({{ '/ru/connection.html' | relative_url }}) — PDO-обёртка, прямые запросы, транзакции и savepoints
 - [DataMapper]({{ '/ru/datamapper.html' | relative_url }}) — Полный справочник CRUD-операций
-- [Маппинг]({{ '/ru/mapping.html' | relative_url }}) — Auto-режим и `ResultSetMapping`
-- [Приведение типов]({{ '/ru/type-casting.html' | relative_url }}) — Встроенные и пользовательские кастеры типов
+- [Маппинг]({{ '/ru/mapping.html' | relative_url }}) — Auto-режим и `Mapping`
+- [Приведение типов]({{ '/ru/type-casting.html' | relative_url }}) — Встроенные и пользовательские конвертеры типов
 - [Построитель запросов]({{ '/ru/query-builder.html' | relative_url }}) — Fluent SQL-построитель запросов
 - [Справочник API]({{ '/ru/api-reference.html' | relative_url }}) — Полный справочник классов и методов

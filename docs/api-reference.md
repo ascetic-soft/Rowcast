@@ -23,9 +23,9 @@ Complete reference for all public classes and methods.
 
 `AsceticSoft\Rowcast\Connection`
 
-A thin PDO wrapper with convenience methods and transaction support.
+A PDO wrapper with query helpers, transaction API (including nested transactions via savepoints), and query-builder factory.
 
-### Factory
+### Factory / constructor
 
 ```php
 public static function create(
@@ -35,42 +35,24 @@ public static function create(
     array $options = [],
     bool $nestTransactions = false,
 ): self
-```
 
-### Constructor
-
-```php
 public function __construct(\PDO $pdo, bool $nestTransactions = false)
 ```
 
-### Query Methods
+### Main methods
 
-| Method | Returns | Description |
-|:-------|:--------|:------------|
-| `executeQuery(string $sql, array $params = [])` | `\PDOStatement` | Execute a SELECT query |
-| `executeStatement(string $sql, array $params = [])` | `int` | Execute INSERT/UPDATE/DELETE, returns affected rows |
-| `fetchAllAssociative(string $sql, array $params = [])` | `array` | Fetch all rows as associative arrays |
-| `fetchAssociative(string $sql, array $params = [])` | `array\|false` | Fetch a single row |
-| `fetchOne(string $sql, array $params = [])` | `mixed` | Fetch a single scalar value |
-| `toIterable(string $sql, array $params = [])` | `iterable` | Return results as a generator |
-| `lastInsertId(?string $name = null)` | `string\|false` | Get the last insert ID |
-
-### Transaction Methods
-
-| Method | Returns | Description |
-|:-------|:--------|:------------|
-| `beginTransaction()` | `void` | Start a transaction (or savepoint) |
-| `commit()` | `void` | Commit the transaction (or release savepoint) |
-| `rollBack()` | `void` | Roll back the transaction (or to savepoint) |
-| `transactional(callable $callback)` | `mixed` | Execute in a transaction with auto commit/rollback |
-| `getTransactionNestingLevel()` | `int` | Get current nesting depth |
-
-### Other Methods
-
-| Method | Returns | Description |
-|:-------|:--------|:------------|
-| `createQueryBuilder()` | `QueryBuilder` | Create a new query builder |
-| `getPdo()` | `\PDO` | Get the underlying PDO instance |
+| Method | Returns |
+|:-------|:--------|
+| `executeQuery(string $sql, array $params = [])` | `\PDOStatement` |
+| `executeStatement(string $sql, array $params = [])` | `int` |
+| `fetchAllAssociative(string $sql, array $params = [])` | `list<array<string, mixed>>` |
+| `fetchAssociative(string $sql, array $params = [])` | `array<string, mixed>\|false` |
+| `fetchOne(string $sql, array $params = [])` | `mixed` |
+| `toIterable(string $sql, array $params = [])` | `iterable<int, array<string, mixed>>` |
+| `transactional(callable $callback)` | `mixed` |
+| `createQueryBuilder()` | `QueryBuilder` |
+| `getDriverName()` | `string` |
+| `getPdo()` | `\PDO` |
 
 ---
 
@@ -82,68 +64,61 @@ public function __construct(\PDO $pdo, bool $nestTransactions = false)
 
 ```php
 public function __construct(
-    Connection $connection,
+    ConnectionInterface $connection,
     ?NameConverterInterface $nameConverter = null,
-    ?HydratorInterface $hydrator = null,
+    ?TypeConverterInterface $typeConverter = null,
 )
 ```
 
-### Methods
+### Main methods
 
-| Method | Returns | Description |
-|:-------|:--------|:------------|
-| `insert(string\|ResultSetMapping $target, object $dto)` | `string\|false` | Insert a DTO, returns last insert ID |
-| `update(string\|ResultSetMapping $target, object $dto, array $where)` | `int` | Update rows, returns affected count |
-| `delete(string\|ResultSetMapping $target, array $where)` | `int` | Delete rows, returns affected count |
-| `findAll(string\|ResultSetMapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null)` | `array` | Find all matching rows as DTOs |
-| `iterateAll(string\|ResultSetMapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null)` | `iterable` | Iterate matching rows as DTOs (generator) |
-| `findOne(string\|ResultSetMapping $target, array $where = [])` | `object\|null` | Find a single row as a DTO |
-| `getConnection()` | `Connection` | Get the underlying connection |
+| Method | Returns |
+|:-------|:--------|
+| `insert(string\|Mapping $target, object $dto)` | `string\|false` |
+| `batchInsert(string\|Mapping $target, array $dtos, ?int $maxBindParameters = null)` | `void` |
+| `update(string\|Mapping $target, object $dto, array $where)` | `int` |
+| `batchUpdate(string\|Mapping $target, array $dtos, array $identityProperties, ?int $maxBindParameters = null)` | `void` |
+| `delete(string\|Mapping $target, array $where)` | `int` |
+| `findAll(string\|Mapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null)` | `list<object>` |
+| `iterateAll(string\|Mapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null)` | `iterable<int, object>` |
+| `findOne(string\|Mapping $target, array $where = [])` | `object\|null` |
+| `save(string\|Mapping $target, object $dto, string ...$identityProperties)` | `void` |
+| `upsert(string\|Mapping $target, object $dto, string ...$conflictProperties)` | `int` |
+| `batchUpsert(string\|Mapping $target, array $dtos, array $conflictProperties, ?int $maxBindParameters = null)` | `void` |
+| `hydrate(string\|Mapping $target, array $row)` | `object` |
+| `hydrateAll(string\|Mapping $target, array $rows)` | `list<object>` |
+| `extract(string\|Mapping $target, object $dto)` | `array<string, mixed>` |
+| `getConnection()` | `ConnectionInterface` |
 
 ---
 
-## ResultSetMapping
+## Mapping
 
-`AsceticSoft\Rowcast\Mapping\ResultSetMapping`
+`AsceticSoft\Rowcast\Mapping`
 
-### Constructor
-
-```php
-public function __construct(string $className, ?string $table = null)
-```
-
-### Methods
-
-| Method | Returns | Description |
-|:-------|:--------|:------------|
-| `addField(string $column, string $property)` | `self` | Map a column to a property |
-| `getClassName()` | `string` | Get the DTO class name |
-| `getTable()` | `?string` | Get the table name |
-| `getFields()` | `array` | Get all field mappings |
-
-### Static Factory
+### Factories
 
 ```php
-public static function fromArray(array $config): self
+public static function auto(string $className, string $table): self
+public static function explicit(string $className, string $table): self
 ```
 
-Config array format:
+### Main methods
 
-```php
-[
-    'class'  => User::class,
-    'table'  => 'custom_users',
-    'fields' => [
-        'column_name' => 'propertyName',
-    ],
-]
-```
+| Method | Returns |
+|:-------|:--------|
+| `column(string $columnName, string $propertyName)` | `self` |
+| `ignore(string ...$properties)` | `self` |
+| `getClassName()` | `string` |
+| `getTable()` | `string` |
+| `isAutoDiscover()` | `bool` |
+| `getColumns()` | `array<string, string>` |
 
 ---
 
 ## NameConverterInterface
 
-`AsceticSoft\Rowcast\Mapping\NameConverter\NameConverterInterface`
+`AsceticSoft\Rowcast\NameConverter\NameConverterInterface`
 
 ```php
 interface NameConverterInterface
@@ -153,67 +128,38 @@ interface NameConverterInterface
 }
 ```
 
-### Implementations
-
-| Class | Description |
-|:------|:------------|
-| `SnakeCaseToCamelCaseConverter` | `snake_case` ↔ `camelCase` (default) |
-| `NullConverter` | No conversion (pass-through) |
+Default implementation: `SnakeCaseToCamelCase`.
 
 ---
 
-## HydratorInterface
+## TypeConverterInterface
 
-`AsceticSoft\Rowcast\Hydration\HydratorInterface`
+`AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface`
 
 ```php
-interface HydratorInterface
+interface TypeConverterInterface
 {
-    public function hydrate(string $className, array $row, ?ResultSetMapping $rsm = null): object;
-    public function hydrateAll(string $className, array $rows, ?ResultSetMapping $rsm = null): array;
+    public function supports(string $phpType): bool;
+    public function toPhp(mixed $value, string $phpType): mixed;
+    public function toDb(mixed $value): mixed;
 }
 ```
 
-### Implementations
-
-| Class | Description |
-|:------|:------------|
-| `ReflectionHydrator` | Reflection-based hydration with type casting (default) |
+Built-in converters: `ScalarConverter`, `BoolConverter`, `DateTimeConverter`, `JsonConverter`, `EnumConverter`.
 
 ---
 
-## TypeCasterInterface
+## TypeConverterRegistry
 
-`AsceticSoft\Rowcast\TypeCaster\TypeCasterInterface`
+`AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry`
 
-```php
-interface TypeCasterInterface
-{
-    public function supports(string $type): bool;
-    public function cast(mixed $value, string $type): mixed;
-}
-```
-
-### Built-in Implementations
-
-| Class | Supported types |
-|:------|:----------------|
-| `ScalarTypeCaster` | `int`, `float`, `bool`, `string` |
-| `DateTimeTypeCaster` | `DateTime`, `DateTimeImmutable`, `DateTimeInterface` |
-| `EnumTypeCaster` | Any `BackedEnum` |
-
----
-
-## TypeCasterRegistry
-
-`AsceticSoft\Rowcast\TypeCaster\TypeCasterRegistry`
-
-| Method | Returns | Description |
-|:-------|:--------|:------------|
-| `static createDefault()` | `self` | Create with all built-in casters |
-| `addCaster(TypeCasterInterface $caster)` | `void` | Register a custom caster |
-| `supports(string $type)` | `bool` | Check if a type is supported |
-| `cast(mixed $value, string $type)` | `mixed` | Cast a value to the given type |
+| Method | Returns |
+|:-------|:--------|
+| `static defaults()` | `self` |
+| `add(TypeConverterInterface $converter)` | `self` |
+| `supports(string $phpType)` | `bool` |
+| `toPhp(mixed $value, string $phpType)` | `mixed` |
+| `toDb(mixed $value)` | `mixed` |
 
 ---
 
@@ -230,9 +176,11 @@ interface TypeCasterInterface
 | `leftJoin(string $from, string $table, string $alias, string $condition)` | `self` |
 | `innerJoin(string $from, string $table, string $alias, string $condition)` | `self` |
 | `rightJoin(string $from, string $table, string $alias, string $condition)` | `self` |
-| `where(string $expression)` | `self` |
-| `andWhere(string $expression)` | `self` |
-| `orWhere(string $expression)` | `self` |
+| `where(string\|array $expression)` | `self` |
+| `andWhere(string\|array $expression)` | `self` |
+| `orWhere(string\|array $expression)` | `self` |
+| `whereOr(array ...$groups)` | `self` |
+| `andWhereOr(array ...$groups)` | `self` |
 | `groupBy(string ...$columns)` | `self` |
 | `having(string $expression)` | `self` |
 | `orderBy(string $column, string $direction = 'ASC')` | `self` |
@@ -246,6 +194,9 @@ interface TypeCasterInterface
 |:-------|:--------|
 | `insert(string $table)` | `self` |
 | `values(array $values)` | `self` |
+| `upsert(string $table)` | `self` |
+| `onConflict(string ...$columns)` | `self` |
+| `doUpdateSet(array $columns)` | `self` |
 
 ### UPDATE
 
@@ -283,6 +234,7 @@ enum QueryType
 {
     case Select;
     case Insert;
+    case Upsert;
     case Update;
     case Delete;
 }
@@ -295,23 +247,22 @@ enum QueryType
 ```
 AsceticSoft\Rowcast\
 ├── Connection                          # PDO wrapper with convenience methods
-├── DataMapper                          # Main DataMapper (CRUD operations)
-├── Hydration\
-│   ├── HydratorInterface              # Hydrator contract
-│   └── ReflectionHydrator             # Reflection-based hydrator
-├── Mapping\
-│   ├── ResultSetMapping               # Explicit column ↔ property mapping
-│   └── NameConverter\
-│       ├── NameConverterInterface     # Name converter contract
-│       ├── SnakeCaseToCamelCaseConverter  # snake_case ↔ camelCase (default)
-│       └── NullConverter              # No conversion (pass-through)
+├── DataMapper                          # Main DataMapper (CRUD + batch + upsert)
+├── Hydrator                            # Reflection-based hydrator
+├── Extractor                           # DTO -> DB row extraction
+├── Mapping                             # Auto/explicit mapping model
+├── NameConverter\
+│   ├── NameConverterInterface          # Name converter contract
+│   └── SnakeCaseToCamelCase            # snake_case ↔ camelCase (default)
 ├── QueryBuilder\
 │   ├── QueryBuilder                   # Fluent SQL query builder
 │   └── QueryType                      # Query type enum
-└── TypeCaster\
-    ├── TypeCasterInterface            # Type caster contract
-    ├── TypeCasterRegistry             # Registry managing multiple casters
-    ├── ScalarTypeCaster               # int, float, bool, string
-    ├── DateTimeTypeCaster             # DateTime, DateTimeImmutable
-    └── EnumTypeCaster                 # BackedEnum
+└── TypeConverter\
+    ├── TypeConverterInterface         # Type converter contract
+    ├── TypeConverterRegistry          # Registry managing converters
+    ├── ScalarConverter                # int, float, string
+    ├── BoolConverter                  # bool <-> 0/1
+    ├── DateTimeConverter              # DateTimeInterface
+    ├── JsonConverter                  # array <-> JSON
+    └── EnumConverter                  # BackedEnum
 ```

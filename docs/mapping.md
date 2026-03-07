@@ -7,7 +7,7 @@ nav_order: 5
 # Mapping
 {: .no_toc }
 
-Auto mode with conventions, explicit ResultSetMapping, and custom name converters.
+Auto mode with conventions, explicit `Mapping`, and custom name converters.
 {: .fs-6 .fw-300 }
 
 <details open markdown="block">
@@ -35,7 +35,7 @@ The class name is converted to a plural snake_case table name:
 
 ### Property-to-column mapping
 
-By default, `SnakeCaseToCamelCaseConverter` handles the conversion:
+By default, `SnakeCaseToCamelCase` handles the conversion:
 
 | Column name    | Property name |
 |:---------------|:--------------|
@@ -45,39 +45,34 @@ By default, `SnakeCaseToCamelCaseConverter` handles the conversion:
 
 ---
 
-## ResultSetMapping (Explicit Mode)
+## Mapping (Explicit Mode)
 
-When column names don't follow conventions or the table name differs, use `ResultSetMapping`:
+When column names don't follow conventions or the table name differs, use `Mapping`:
 
 ```php
-use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Mapping;
 
-$rsm = new ResultSetMapping(User::class, table: 'custom_users');
-$rsm->addField('usr_nm', 'name')
-    ->addField('usr_email', 'email')
-    ->addField('id', 'id');
+$mapping = Mapping::explicit(User::class, 'custom_users')
+    ->column('usr_nm', 'name')
+    ->column('usr_email', 'email')
+    ->column('id', 'id');
 ```
 
 Use the mapping with any DataMapper operation:
 
 ```php
-$mapper->insert($rsm, $user);
-$user = $mapper->findOne($rsm, ['id' => 1]);
-$mapper->update($rsm, $user, ['id' => 1]);
-$mapper->delete($rsm, ['id' => 1]);
+$mapper->insert($mapping, $user);
+$user = $mapper->findOne($mapping, ['id' => 1]);
+$mapper->update($mapping, $user, ['id' => 1]);
+$mapper->delete($mapping, ['id' => 1]);
 ```
 
-### Creating from an array
+### Auto-discovery with overrides
 
 ```php
-$rsm = ResultSetMapping::fromArray([
-    'class'  => User::class,
-    'table'  => 'custom_users',
-    'fields' => [
-        'usr_nm'    => 'name',
-        'usr_email' => 'email',
-    ],
-]);
+$mapping = Mapping::auto(User::class, 'custom_users')
+    ->column('usr_email', 'email')
+    ->ignore('internalNote');
 ```
 
 ---
@@ -86,26 +81,16 @@ $rsm = ResultSetMapping::fromArray([
 
 Name converters define how property names map to column names and vice versa.
 
-### SnakeCaseToCamelCaseConverter (default)
+### SnakeCaseToCamelCase (default)
 
 Converts between `snake_case` columns and `camelCase` properties:
 
 ```php
-use AsceticSoft\Rowcast\Mapping\NameConverter\SnakeCaseToCamelCaseConverter;
+use AsceticSoft\Rowcast\NameConverter\SnakeCaseToCamelCase;
 
-$converter = new SnakeCaseToCamelCaseConverter();
+$converter = new SnakeCaseToCamelCase();
 $converter->toPropertyName('created_at'); // 'createdAt'
 $converter->toColumnName('createdAt');    // 'created_at'
-```
-
-### NullConverter
-
-No conversion — property names are used as column names directly:
-
-```php
-use AsceticSoft\Rowcast\Mapping\NameConverter\NullConverter;
-
-$mapper = new DataMapper($connection, nameConverter: new NullConverter());
 ```
 
 ### Custom Name Converter
@@ -113,7 +98,7 @@ $mapper = new DataMapper($connection, nameConverter: new NullConverter());
 Implement `NameConverterInterface` for custom logic:
 
 ```php
-use AsceticSoft\Rowcast\Mapping\NameConverter\NameConverterInterface;
+use AsceticSoft\Rowcast\NameConverter\NameConverterInterface;
 
 class PrefixedConverter implements NameConverterInterface
 {
