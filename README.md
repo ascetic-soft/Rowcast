@@ -317,10 +317,11 @@ Supported array operators:
 // Comparison operators
 ->where(['age >' => 18, 'age <=' => 65, 'score !=' => 0])
 
-// LIKE / ILIKE / NOT LIKE
+// LIKE / ILIKE / NOT LIKE / NOT ILIKE
 ->where(['name LIKE' => '%alice%'])
 ->where(['name ILIKE' => '%alice%'])             // useful for PostgreSQL
 ->where(['name NOT LIKE' => '%bot%'])
+->where(['name NOT ILIKE' => '%bot%'])           // PostgreSQL only
 
 // BETWEEN
 ->where(['age BETWEEN' => [18, 65]])
@@ -341,13 +342,25 @@ Operator reference:
 | `LIKE` | `['name LIKE' => 'A%']` | `name LIKE :w_name` |
 | `ILIKE` | `['name ILIKE' => 'a%']` | `name ILIKE :w_name` |
 | `NOT LIKE` | `['name NOT LIKE' => '%bot%']` | `name NOT LIKE :w_name` |
+| `NOT ILIKE` | `['name NOT ILIKE' => '%bot%']` | `name NOT ILIKE :w_name` |
 | `BETWEEN` | `['age BETWEEN' => [18, 65]]` | `age BETWEEN :w_age AND :w_age_1` |
 
 Notes:
 
 - Empty `IN` array compiles to `1 = 0` (always false).
 - Empty `NOT IN` array compiles to `1 = 1` (always true).
-- `ILIKE` is PostgreSQL-specific; use `LIKE` for portable SQL across drivers.
+- `ILIKE` and `NOT ILIKE` are PostgreSQL-specific.
+
+Dialect-specific operator support:
+
+| Dialect | Extra operators over base set |
+|---|---|
+| PostgreSQL (`pgsql`) | `ILIKE`, `NOT ILIKE` |
+| MySQL (`mysql`) | none |
+| SQLite (`sqlite`) | none |
+| Generic/other drivers | none |
+
+Base set for all dialects: `>`, `>=`, `<`, `<=`, `LIKE`, `NOT LIKE`.
 
 ### OR Conditions
 
@@ -451,6 +464,8 @@ $sql = $connection->createQueryBuilder()
 - `SqliteDialect`
 - `GenericDialect` (throws for unsupported UPSERT)
 
+`WHERE` array operator support is also dialect-aware (for example, `ILIKE`/`NOT ILIKE` only for PostgreSQL).
+
 ## Architecture
 
 ```text
@@ -480,6 +495,8 @@ AsceticSoft\Rowcast\
     ├── Dialect\
     │   ├── DialectInterface
     │   ├── DialectFactory
+    │   ├── AbstractStandardDialect
+    │   ├── AbstractOnConflictDialect
     │   ├── MysqlDialect
     │   ├── PostgresDialect
     │   ├── SqliteDialect
