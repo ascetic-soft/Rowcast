@@ -10,14 +10,14 @@
 
 Lightweight DataMapper over PDO for PHP 8.4+.
 
-Zero external dependencies. Maps database rows to plain DTO objects and back using Reflection, with automatic type casting, naming convention support, and a fluent query builder.
+Rowcast maps database rows to DTOs and back using reflection, supports explicit/auto mapping, type conversion, and includes a fluent query builder with dialect-aware UPSERT.
 
 **Documentation:** [English](https://ascetic-soft.github.io/Rowcast/) | [Русский](https://ascetic-soft.github.io/Rowcast/ru/)
 
 ## Requirements
 
 - PHP >= 8.4
-- PDO extension
+- `ext-pdo`
 
 ## Installation
 
@@ -31,461 +31,219 @@ composer require ascetic-soft/rowcast
 use AsceticSoft\Rowcast\Connection;
 use AsceticSoft\Rowcast\DataMapper;
 
-// 1. Create a DTO
-class User
+class UserDto
 {
     public int $id;
-    public string $name;
     public string $email;
+    public bool $isActive;
 }
 
-// 2. Connect to the database
-$connection = Connection::create('mysql:host=localhost;dbname=app', 'root', 'secret');
+$connection = Connection::create('sqlite::memory:');
 $mapper = new DataMapper($connection);
 
-// 3. Insert
-$user = new User();
-$user->name = 'Alice';
+$user = new UserDto();
 $user->email = 'alice@example.com';
+$user->isActive = true;
 
 $id = $mapper->insert('users', $user);
-
-// 4. Find
-$user = $mapper->findOne(User::class, ['id' => 1]);
-// User { id: 1, name: "Alice", email: "alice@example.com" }
-
-// 5. Update
-$user->name = 'Alice Updated';
-$mapper->update('users', $user, ['id' => $user->id]);
-
-// 6. Delete
-$mapper->delete('users', ['id' => $user->id]);
+$found = $mapper->findOne(UserDto::class, ['id' => (int) $id]);
 ```
 
 ## Core Concepts
 
-Rowcast operates in two modes:
+Rowcast supports two mapping styles:
 
-- **Auto mode** — pass a table name (for writes) or a `class-string` (for reads). Property-to-column mapping is derived automatically via a `NameConverter` (by default `snake_case` columns map to `camelCase` properties).
-- **Explicit mode** — pass a `ResultSetMapping` for full control over column-to-property mapping and table name.
+- **Auto mapping** — pass `class-string` for reads and table name for writes. Names are converted via `NameConverterInterface` (default: `SnakeCaseToCamelCase`).
+- **Explicit mapping** — pass `Mapping` to control table name, column/property pairs, and ignored properties.
 
-### Auto Mode
+### Auto Mapping
 
-In auto mode the table name for reads is derived from the class name:
+Table name is derived from DTO class name for reads:
 
-| Class name    | Derived table    |
-|---------------|------------------|
-| `User`        | `users`          |
-| `UserProfile` | `user_profiles`  |
-| `SimpleUser`  | `simple_users`   |
+| Class | Table |
+|-------|-------|
+| `User` | `users` |
+| `UserProfile` | `user_profiles` |
 
-Property names are converted using `SnakeCaseToCamelCaseConverter`:
+Column/property conversion (default):
 
-| Column name   | Property name |
-|---------------|---------------|
-| `created_at`  | `createdAt`   |
-| `user_name`   | `userName`    |
-| `id`          | `id`          |
+| Column | Property |
+|--------|----------|
+| `created_at` | `createdAt` |
+| `is_active` | `isActive` |
 
-### Explicit Mode (ResultSetMapping)
-
-When column names don't follow conventions or the table name differs, use `ResultSetMapping`:
+### Explicit Mapping
 
 ```php
-use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Mapping;
 
-$rsm = new ResultSetMapping(User::class, table: 'custom_users');
-$rsm->addField('usr_nm', 'name')
-    ->addField('usr_email', 'email')
-    ->addField('id', 'id');
+$mapping = Mapping::auto(UserDto::class, 'custom_users')
+    ->column('usr_email', 'email')
+    ->ignore('internalNote');
 
-// Insert
-$mapper->insert($rsm, $user);
-
-// Find
-$user = $mapper->findOne($rsm, ['id' => 1]);
-
-// Update
-$mapper->update($rsm, $user, ['id' => 1]);
-
-// Delete
-$mapper->delete($rsm, ['id' => 1]);
+$user = $mapper->findOne($mapping, ['id' => 1]);
 ```
 
-You can also create a `ResultSetMapping` from an array:
+Use `Mapping::explicit(...)` when only declared columns must be used:
 
 ```php
-$rsm = ResultSetMapping::fromArray([
-    'class'  => User::class,
-    'table'  => 'custom_users',
-    'fields' => [
-        'usr_nm'    => 'name',
-        'usr_email' => 'email',
-    ],
-]);
+$mapping = Mapping::explicit(UserDto::class, 'custom_users')
+    ->column('id', 'id')
+    ->column('usr_email', 'email');
 ```
 
 ## Connection
 
-`Connection` is a thin wrapper around PDO that enforces exception error mode and provides convenience methods.
+`Connection` wraps PDO and provides query helpers, transaction API, nested transaction support (savepoints), and query-builder factory.
 
-### Creating a Connection
+### Create Connection
 
 ```php
 use AsceticSoft\Rowcast\Connection;
 
-// From DSN parameters
+// From DSN
 $connection = Connection::create(
     dsn: 'mysql:host=localhost;dbname=app',
     username: 'root',
     password: 'secret',
+    nestTransactions: true,
 );
 
-// From an existing PDO instance
+// From existing PDO
 $pdo = new \PDO('sqlite::memory:');
-$connection = new Connection($pdo);
+$connection = new Connection($pdo, nestTransactions: true);
 ```
 
-### Running Raw Queries
+### Raw Queries
 
 ```php
-// SELECT — returns PDOStatement
 $stmt = $connection->executeQuery('SELECT * FROM users WHERE id = ?', [1]);
-
-// INSERT/UPDATE/DELETE — returns affected row count
-$affected = $connection->executeStatement(
-    'UPDATE users SET name = ? WHERE id = ?',
-    ['Alice', 1],
-);
-
-// Fetch all rows as associative arrays
+$affected = $connection->executeStatement('UPDATE users SET email = ? WHERE id = ?', ['a@x.com', 1]);
 $rows = $connection->fetchAllAssociative('SELECT * FROM users');
-
-// Fetch a single row
 $row = $connection->fetchAssociative('SELECT * FROM users WHERE id = ?', [1]);
-
-// Fetch a single scalar value
 $count = $connection->fetchOne('SELECT COUNT(*) FROM users');
 ```
 
 ### Transactions
 
 ```php
-// Manual transaction management
-$connection->beginTransaction();
-try {
-    $connection->executeStatement('INSERT INTO users (name) VALUES (?)', ['Alice']);
-    $connection->executeStatement('INSERT INTO users (name) VALUES (?)', ['Bob']);
-    $connection->commit();
-} catch (\Throwable $e) {
-    $connection->rollBack();
-    throw $e;
-}
-
-// Automatic transaction (recommended)
 $connection->transactional(function (Connection $conn) {
-    $conn->executeStatement('INSERT INTO users (name) VALUES (?)', ['Alice']);
-    $conn->executeStatement('INSERT INTO users (name) VALUES (?)', ['Bob']);
+    $conn->executeStatement('INSERT INTO users (email) VALUES (?)', ['alice@example.com']);
 });
 ```
 
-### Nested Transactions (Savepoints)
+Nested mode creates savepoints for inner transactions.
 
-By default, calling `beginTransaction()` inside an active transaction will fail. Enable savepoint-based nesting via the `nestTransactions` option:
+## DataMapper API
+
+Main methods:
+
+- `insert(string|Mapping $target, object $dto): string|false`
+- `update(string|Mapping $target, object $dto, array $where): int`
+- `delete(string|Mapping $target, array $where): int`
+- `findAll(string|Mapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null): array`
+- `iterateAll(string|Mapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null): iterable`
+- `findOne(string|Mapping $target, array $where = []): ?object`
+- `save(string|Mapping $target, object $dto, string ...$identityProperties): void`
+- `upsert(string|Mapping $target, object $dto, string ...$conflictProperties): int`
+- `hydrate(...)`, `hydrateAll(...)`, `extract(...)`
+
+### CRUD Example
 
 ```php
-// Via factory
-$connection = Connection::create('mysql:host=localhost;dbname=app', 'root', 'secret', nestTransactions: true);
+$dto = new UserDto();
+$dto->email = 'alice@example.com';
+$dto->isActive = true;
 
-// Via constructor
-$connection = new Connection($pdo, nestTransactions: true);
+$id = $mapper->insert('users', $dto);
+$one = $mapper->findOne(UserDto::class, ['id' => (int) $id]);
+
+$one->isActive = false;
+$mapper->update('users', $one, ['id' => $one->id]);
+$mapper->delete('users', ['id' => $one->id]);
 ```
 
-When enabled, inner `beginTransaction()` calls create SQL `SAVEPOINT`s, and `commit()` / `rollBack()` release or roll back to the corresponding savepoint:
+### `save(...)` Example
+
+`save(...)` checks row existence by identity columns, then performs insert or update.
 
 ```php
-$connection->transactional(function (Connection $conn) {
-    $conn->executeStatement('INSERT INTO users (name) VALUES (?)', ['Alice']);
-
-    try {
-        $conn->transactional(function (Connection $inner) {
-            $inner->executeStatement('INSERT INTO users (name) VALUES (?)', ['Bob']);
-            throw new \RuntimeException('inner failure');
-        });
-    } catch (\RuntimeException) {
-        // Only the inner transaction (Bob) is rolled back.
-        // Alice's insert is preserved.
-    }
-});
-// Alice is committed; Bob is not.
+$mapper->save('users', $dto, 'id');
 ```
 
-You can check the current nesting depth at any time:
+### `upsert(...)` Example
 
 ```php
-$connection->getTransactionNestingLevel(); // 0 — no active transaction
+$affected = $mapper->upsert('users', $dto, 'email');
 ```
 
-## DataMapper
+### Advanced `where` in DataMapper
 
-### insert
-
-Inserts a DTO into the database. Uninitialized properties are automatically skipped (useful for auto-increment primary keys).
+`DataMapper` passes `where` arrays to the same QueryBuilder condition engine, so advanced operators are available there as well:
 
 ```php
-$user = new User();
-$user->name = 'Alice';        // id is not set — will be skipped
-$user->email = 'alice@example.com';
-
-$id = $mapper->insert('users', $user);
-// $id = "1"
+$users = $mapper->findAll(UserDto::class, where: [
+    'deleted_at' => null,
+    '$or' => [
+        ['status' => ['active', 'pending']],
+        ['role' => 'admin'],
+    ],
+    'age >=' => 18,
+]);
 ```
 
-### update
+## Type Conversion
 
-Updates rows matching the WHERE conditions. Returns the number of affected rows.
+Rowcast converts DB values to declared PHP property types on hydrate, and PHP values to DB-safe values on extract/write.
 
-```php
-$user->name = 'Alice Updated';
+Built-in converters:
 
-$affected = $mapper->update('users', $user, ['id' => 1]);
-// $affected = 1
-```
+- `ScalarConverter` (`int`, `float`, `string`)
+- `BoolConverter` (`bool` <-> `0/1`)
+- `DateTimeConverter` (`DateTimeInterface` <-> formatted UTC string)
+- `JsonConverter` (`array` <-> JSON)
+- `EnumConverter` (`BackedEnum` <-> backing value)
 
-WHERE conditions are required to prevent accidental mass updates.
+### Custom Type Converter
 
-### delete
-
-Deletes rows matching the WHERE conditions. Returns the number of affected rows.
-
-```php
-$affected = $mapper->delete('users', ['id' => 1]);
-```
-
-WHERE conditions are required to prevent accidental mass deletes.
-
-### findAll
-
-Finds all rows matching the conditions and hydrates them into DTO objects.
+Implement `TypeConverterInterface` and pass a custom registry to `DataMapper`:
 
 ```php
-// All users
-$users = $mapper->findAll(User::class);
+use AsceticSoft\Rowcast\DataMapper;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 
-// With conditions
-$users = $mapper->findAll(User::class, ['status' => 'active']);
-
-// With ordering
-$users = $mapper->findAll(User::class, orderBy: ['name' => 'ASC']);
-
-// With pagination
-$users = $mapper->findAll(User::class, limit: 10, offset: 20);
-
-// Combined
-$users = $mapper->findAll(
-    User::class,
-    where: ['status' => 'active'],
-    orderBy: ['created_at' => 'DESC'],
-    limit: 10,
-    offset: 0,
-);
-```
-
-### findOne
-
-Finds a single row and hydrates it into a DTO object. Returns `null` if no row matches.
-
-```php
-$user = $mapper->findOne(User::class, ['id' => 1]);
-
-if ($user === null) {
-    // not found
-}
-```
-
-## Type Casting
-
-Rowcast automatically casts database values to the PHP types declared on your DTO properties, and converts PHP values back to database-compatible formats on write.
-
-### Read (DB to PHP)
-
-| Database value          | PHP property type         | Result                     |
-|-------------------------|---------------------------|----------------------------|
-| `"42"`                  | `int`                     | `42`                       |
-| `"3.14"`                | `float`                   | `3.14`                     |
-| `"1"` / `"0"`           | `bool`                    | `true` / `false`           |
-| `42`                    | `string`                  | `"42"`                     |
-| `"2025-06-15 10:30:00+00:00"` | `DateTimeImmutable`       | `DateTimeImmutable` object |
-| `"2025-06-15 10:30:00+00:00"` | `DateTimeInterface`       | `DateTimeImmutable` object |
-| `"2025-06-15 10:30:00+00:00"` | `DateTime`                | `DateTime` object          |
-| `"active"`              | `UserStatus` (BackedEnum) | `UserStatus::Active`       |
-| `'{"foo":"bar"}'`       | `array`                   | `['foo' => 'bar']`         |
-| `NULL`                  | `?int`, `?string`, etc.   | `null`                     |
-
-### Write (PHP to DB)
-
-| PHP value           | Database value                 |
-|---------------------|--------------------------------|
-| `true` / `false`    | `1` / `0`                      |
-| `DateTimeInterface` | `"Y-m-d H:i:sP"` (UTC) string  |
-| `BackedEnum`        | Backing value (`int`/`string`) |
-| `array` / `stdClass`| JSON string                    |
-| `null`              | `NULL`                         |
-| Scalars             | Passed through as-is           |
-
-### Built-in Type Casters
-
-- **ScalarTypeCaster** — `int`, `float`, `bool`, `string`
-- **JsonTypeCaster** — `array` and `stdClass`
-- **DateTimeTypeCaster** — `DateTime`, `DateTimeImmutable`, `DateTimeInterface` (resolved to `DateTimeImmutable`)
-- **EnumTypeCaster** — any `BackedEnum`
-
-### Custom Type Caster
-
-Implement `TypeCasterInterface` and register it in the registry:
-
-```php
-use AsceticSoft\Rowcast\TypeCaster\TypeCasterInterface;
-use AsceticSoft\Rowcast\TypeCaster\TypeCasterRegistry;
-
-class UuidTypeCaster implements TypeCasterInterface
+final class UuidConverter implements TypeConverterInterface
 {
-    public function supports(string $type): bool
+    public function supports(string $phpType): bool
     {
-        return $type === Uuid::class;
+        return $phpType === Uuid::class;
     }
 
-    public function cast(mixed $value, string $type): Uuid
+    public function toPhp(mixed $value, string $phpType): mixed
     {
         return new Uuid((string) $value);
     }
+
+    public function toDb(mixed $value): mixed
+    {
+        return (string) $value;
+    }
 }
 
-$registry = TypeCasterRegistry::createDefault();
-$registry->addCaster(new UuidTypeCaster());
-```
-
-Then pass a custom hydrator to `DataMapper`:
-
-```php
-use AsceticSoft\Rowcast\Hydration\ReflectionHydrator;
-
-$hydrator = new ReflectionHydrator(typeCaster: $registry);
-$mapper = new DataMapper($connection, hydrator: $hydrator);
-```
-
-## Query Builder
-
-`Connection::createQueryBuilder()` returns a fluent query builder for constructing complex SQL queries.
-
-### SELECT
-
-```php
-$qb = $connection->createQueryBuilder();
-
-$rows = $qb->select('u.id', 'u.name', 'p.title')
-    ->from('users', 'u')
-    ->leftJoin('u', 'posts', 'p', 'p.user_id = u.id')
-    ->where('u.status = :status')
-    ->andWhere('u.created_at > :date')
-    ->groupBy('u.id')
-    ->having('COUNT(p.id) > :min')
-    ->orderBy('u.name', 'ASC')
-    ->addOrderBy('u.id', 'DESC')
-    ->setMaxResults(10)
-    ->setFirstResult(0)
-    ->setParameter('status', 'active')
-    ->setParameter('date', '2025-01-01')
-    ->setParameter('min', 5)
-    ->fetchAllAssociative();
-```
-
-### INSERT
-
-```php
-$qb = $connection->createQueryBuilder();
-
-// Direct values (short form)
-$qb->insert('users')
-    ->values([
-        'name'  => 'Alice',
-        'email' => 'alice@example.com',
-    ])
-    ->executeStatement();
-
-// Mixed mode:
-// - strings starting with ":" are treated as placeholders
-// - everything else is treated as direct value
-$qb->insert('users')
-    ->values([
-        'name'  => ':name',
-        'email' => 'alice@example.com',
-    ])
-    ->setParameter('name', 'Alice')
-    ->executeStatement();
-
-// Per-column API
-$qb->insert('users')
-    ->setValue('name', 'Alice')
-    ->setValue('email', 'alice@example.com')
-    ->executeStatement();
-```
-
-### UPDATE
-
-```php
-$qb = $connection->createQueryBuilder();
-
-// Direct values (short form)
-$qb->update('users')
-    ->set('name', 'Alice Updated')
-    ->where('id = :id')
-    ->setParameter('id', 1)
-    ->executeStatement();
-
-// Placeholder mode
-$qb->update('users')
-    ->set('name', ':name')
-    ->where('id = :id')
-    ->setParameter('name', 'Alice Updated')
-    ->setParameter('id', 1)
-    ->executeStatement();
-```
-
-### DELETE
-
-```php
-$qb = $connection->createQueryBuilder();
-
-$qb->delete('users')
-    ->where('id = :id')
-    ->setParameter('id', 1)
-    ->executeStatement();
-```
-
-### Getting the Raw SQL
-
-```php
-$sql = $qb->getSQL();
+$converters = TypeConverterRegistry::defaults()->add(new UuidConverter());
+$mapper = new DataMapper($connection, typeConverter: $converters);
 ```
 
 ## Custom Name Converter
 
-By default, `SnakeCaseToCamelCaseConverter` converts between `snake_case` columns and `camelCase` properties. You can provide a different converter:
+Implement `NameConverterInterface` and pass it to `DataMapper`:
 
 ```php
-use AsceticSoft\Rowcast\Mapping\NameConverter\NullConverter;
+use AsceticSoft\Rowcast\DataMapper;
+use AsceticSoft\Rowcast\NameConverter\NameConverterInterface;
 
-// NullConverter: no conversion, property names used as column names
-$mapper = new DataMapper($connection, nameConverter: new NullConverter());
-```
-
-Implement `NameConverterInterface` for custom logic:
-
-```php
-use AsceticSoft\Rowcast\Mapping\NameConverter\NameConverterInterface;
-
-class PrefixedConverter implements NameConverterInterface
+final class PrefixedConverter implements NameConverterInterface
 {
     public function toPropertyName(string $columnName): string
     {
@@ -497,172 +255,244 @@ class PrefixedConverter implements NameConverterInterface
         return 'usr_' . $propertyName;
     }
 }
+
+$mapper = new DataMapper($connection, nameConverter: new PrefixedConverter());
 ```
 
-## Custom Hydrator
+## Query Builder
 
-Implement `HydratorInterface` to customize how database rows are converted to objects:
+`Connection::createQueryBuilder()` provides a fluent SQL builder.
+
+### SELECT
 
 ```php
-use AsceticSoft\Rowcast\Hydration\HydratorInterface;
-use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
-
-class MyHydrator implements HydratorInterface
-{
-    public function hydrate(string $className, array $row, ?ResultSetMapping $rsm = null): object
-    {
-        // your custom logic
-    }
-
-    public function hydrateAll(string $className, array $rows, ?ResultSetMapping $rsm = null): array
-    {
-        return array_map(
-            fn(array $row) => $this->hydrate($className, $row, $rsm),
-            $rows,
-        );
-    }
-}
-
-$mapper = new DataMapper($connection, hydrator: new MyHydrator());
+$rows = $connection->createQueryBuilder()
+    ->select('u.id', 'u.email')
+    ->from('users', 'u')
+    ->where('u.is_active = :active')
+    ->orderBy('u.id', 'DESC')
+    ->setMaxResults(10)
+    ->setParameter('active', 1)
+    ->fetchAllAssociative();
 ```
 
-## Working with Enums
-
-Rowcast supports `BackedEnum` types out of the box:
+You can also pass associative arrays to `where()`, `andWhere()`, and `orWhere()`:
 
 ```php
-enum Status: string
-{
-    case Active = 'active';
-    case Inactive = 'inactive';
-    case Banned = 'banned';
-}
-
-class UserDto
-{
-    public int $id;
-    public string $name;
-    public Status $status;
-    public ?Status $previousStatus;  // nullable enums are supported
-}
-
-$dto = new UserDto();
-$dto->name = 'Alice';
-$dto->status = Status::Active;
-$dto->previousStatus = null;
-
-$mapper->insert('users', $dto);
-// Stored as: status = 'active', previous_status = NULL
-
-$user = $mapper->findOne(UserDto::class, ['id' => 1]);
-// $user->status === Status::Active
-// $user->previousStatus === null
+$rows = $connection->createQueryBuilder()
+    ->select('*')
+    ->from('users')
+    ->where(['email' => 'alice@example.com', 'is_active' => 1])
+    ->fetchAllAssociative();
+// SQL: SELECT * FROM users WHERE email = :w_email AND is_active = :w_is_active
 ```
 
-## Working with DateTime
+`array` predicates are converted to `field = :param` expressions joined by `AND`:
 
-`DateTime`, `DateTimeImmutable`, and `DateTimeInterface` properties are automatically handled. Values are normalized to UTC and stored in `Y-m-d H:i:sP` format. When the property type is `DateTimeInterface`, the value is always resolved to `DateTimeImmutable`:
+- `where(['a' => 1, 'b' => 2])` -> `a = :w_a AND b = :w_b`
+- `andWhere(['a' => 1])` appends another `AND` block
+- `orWhere(['a' => 1])` wraps previous predicate: `(prev OR a = :w_a)`
+
+Parameter names are generated automatically and made unique (`:w_id`, `:w_id_1`, ...).
+
+Supported array operators:
 
 ```php
-class Post
-{
-    public int $id;
-    public string $title;
-    public DateTimeImmutable $createdAt;
-    public DateTimeImmutable $updatedAt;
-}
+// IS NULL / IS NOT NULL
+->where(['deleted_at' => null])        // deleted_at IS NULL
+->where(['deleted_at !=' => null])     // deleted_at IS NOT NULL
 
-$post = new Post();
-$post->title = 'Hello World';
-$post->createdAt = new DateTimeImmutable();
-$post->updatedAt = new DateTimeImmutable();
+// IN / NOT IN
+->where(['status' => ['active', 'pending']])     // status IN (...)
+->where(['status !=' => ['banned']])             // status NOT IN (...)
+->where(['status IN' => ['active']])             // explicit IN
+->where(['status NOT IN' => ['banned']])         // explicit NOT IN
 
-$mapper->insert('posts', $post);
-// Stored as: created_at = '2025-06-15 10:30:00+00:00', updated_at = '2025-06-15 10:30:00+00:00'
+// Comparison operators
+->where(['age >' => 18, 'age <=' => 65, 'score !=' => 0])
 
-$found = $mapper->findOne(Post::class, ['id' => 1]);
-// $found->createdAt instanceof DateTimeImmutable
+// LIKE / ILIKE / NOT LIKE
+->where(['name LIKE' => '%alice%'])
+->where(['name ILIKE' => '%alice%'])             // useful for PostgreSQL
+->where(['name NOT LIKE' => '%bot%'])
+
+// BETWEEN
+->where(['age BETWEEN' => [18, 65]])
 ```
 
-## Custom Value Converter (PHP to DB)
+Operator reference:
 
-By default Rowcast converts `bool`, `BackedEnum`, `DateTimeInterface`, and JSON-compatible values (`array`, `stdClass`) when writing to the database. You can add custom converters for other types (e.g. UUID):
+| Input | Example | SQL fragment (shape) |
+|---|---|---|
+| Equality | `['id' => 10]` | `id = :w_id` |
+| `IS NULL` | `['deleted_at' => null]` | `deleted_at IS NULL` |
+| `IS NOT NULL` | `['deleted_at !=' => null]` | `deleted_at IS NOT NULL` |
+| `IN` (auto) | `['status' => ['active', 'pending']]` | `status IN (:w_status, :w_status_1)` |
+| `NOT IN` (auto) | `['status !=' => ['banned']]` | `status NOT IN (:w_status, ...)` |
+| `IN` (explicit) | `['status IN' => ['active']]` | `status IN (:w_status)` |
+| `NOT IN` (explicit) | `['status NOT IN' => ['banned']]` | `status NOT IN (:w_status)` |
+| Comparison | `['age >=' => 18]` | `age >= :w_age` |
+| `LIKE` | `['name LIKE' => 'A%']` | `name LIKE :w_name` |
+| `ILIKE` | `['name ILIKE' => 'a%']` | `name ILIKE :w_name` |
+| `NOT LIKE` | `['name NOT LIKE' => '%bot%']` | `name NOT LIKE :w_name` |
+| `BETWEEN` | `['age BETWEEN' => [18, 65]]` | `age BETWEEN :w_age AND :w_age_1` |
+
+Notes:
+
+- Empty `IN` array compiles to `1 = 0` (always false).
+- Empty `NOT IN` array compiles to `1 = 1` (always true).
+- `ILIKE` is PostgreSQL-specific; use `LIKE` for portable SQL across drivers.
+
+### OR Conditions
+
+You can compose OR logic in two ways.
+
+Method-based OR groups:
 
 ```php
-use AsceticSoft\Rowcast\Persistence\ValueConverterInterface;
-use AsceticSoft\Rowcast\Persistence\ValueConverterRegistry;
-
-class UuidValueConverter implements ValueConverterInterface
-{
-    public function supports(mixed $value): bool
-    {
-        return $value instanceof Uuid;
-    }
-
-    public function convertForDb(mixed $value): string
-    {
-        return $value->toString();
-    }
-}
-
-$registry = ValueConverterRegistry::createDefault();
-$registry->addConverter(new UuidValueConverter());
-
-$mapper = new DataMapper($connection, valueConverter: $registry);
+// (status = 'active' AND age > 18) OR (role = 'admin')
+$rows = $connection->createQueryBuilder()
+    ->select('*')
+    ->from('users')
+    ->whereOr(
+        ['status' => 'active', 'age >' => 18],
+        ['role' => 'admin'],
+    )
+    ->fetchAllAssociative();
 ```
+
+Combine with existing filters:
+
+```php
+// deleted_at IS NULL AND ((status = 'active') OR (role = 'admin'))
+$rows = $connection->createQueryBuilder()
+    ->select('*')
+    ->from('users')
+    ->where(['deleted_at' => null])
+    ->andWhereOr(['status' => 'active'], ['role' => 'admin'])
+    ->fetchAllAssociative();
+```
+
+Nested-key style in one array:
+
+```php
+$rows = $connection->createQueryBuilder()
+    ->select('*')
+    ->from('users')
+    ->where([
+        'age >' => 18,
+        '$or' => [
+            ['status' => 'active'],
+            ['$and' => [
+                ['role' => 'admin'],
+                ['verified' => true],
+            ]],
+        ],
+    ])
+    ->fetchAllAssociative();
+```
+
+OR composition reference:
+
+| Pattern | Example | SQL fragment (shape) |
+|---|---|---|
+| `whereOr(...groups)` | `->whereOr(['status' => 'active'], ['role' => 'admin'])` | `((status = :w_status) OR (role = :w_role))` |
+| `andWhereOr(...groups)` | `->where(['deleted_at' => null])->andWhereOr(['status' => 'active'], ['role' => 'admin'])` | `deleted_at IS NULL AND ((status = :w_status) OR (role = :w_role))` |
+| `$or` inside `where([...])` | `->where(['age >' => 18, '$or' => [['status' => 'active'], ['role' => 'admin']]])` | `age > :w_age AND ((status = :w_status) OR (role = :w_role))` |
+| `$and` inside `$or` | `->where(['$or' => [['status' => 'active'], ['$and' => [['role' => 'admin'], ['verified' => true]]]]])` | `((status = :w_status) OR ((role = :w_role) AND (verified = :w_verified)))` |
+| Mixed operators in OR groups | `->whereOr(['status' => ['active', 'pending'], 'deleted_at' => null], ['name LIKE' => 'A%', 'age BETWEEN' => [18, 65]])` | `((status IN (...) AND deleted_at IS NULL) OR (name LIKE :w_name AND age BETWEEN :w_age AND :w_age_1))` |
+
+### INSERT / UPDATE / DELETE
+
+```php
+$connection->createQueryBuilder()
+    ->insert('users')
+    ->values(['email' => ':email', 'is_active' => ':is_active'])
+    ->setParameter('email', 'alice@example.com')
+    ->setParameter('is_active', 1)
+    ->executeStatement();
+
+$connection->createQueryBuilder()
+    ->update('users')
+    ->set('is_active', ':is_active')
+    ->where('id = :id')
+    ->setParameter('is_active', 0)
+    ->setParameter('id', 1)
+    ->executeStatement();
+
+$connection->createQueryBuilder()
+    ->delete('users')
+    ->where('id = :id')
+    ->setParameter('id', 1)
+    ->executeStatement();
+```
+
+### UPSERT
+
+```php
+$sql = $connection->createQueryBuilder()
+    ->upsert('users')
+    ->values(['email' => ':email', 'name' => ':name'])
+    ->onConflict('email')
+    ->doUpdateSet(['name'])
+    ->getSQL();
+```
+
+`Upsert` is compiled via SQL dialects:
+
+- `MysqlDialect`
+- `PostgresDialect`
+- `SqliteDialect`
+- `GenericDialect` (throws for unsupported UPSERT)
 
 ## Architecture
 
-```
+```text
 AsceticSoft\Rowcast\
-├── ConnectionInterface                 # Connection contract
-├── Connection                          # PDO wrapper (implements ConnectionInterface)
-├── DataMapper                          # Main DataMapper (CRUD operations)
-├── Hydration\
-│   ├── HydratorInterface              # Hydrator contract
-│   └── ReflectionHydrator             # Reflection-based hydrator
-├── Mapping\
-│   ├── ResultSetMapping               # Explicit column ↔ property mapping
-│   └── NameConverter\
-│       ├── NameConverterInterface     # Name converter contract
-│       ├── SnakeCaseToCamelCaseConverter  # snake_case ↔ camelCase (default)
-│       └── NullConverter              # No conversion (pass-through)
-├── Persistence\
-│   ├── ValueConverterInterface        # PHP-to-DB value converter contract
-│   ├── ValueConverterRegistry         # Registry managing multiple converters
-│   ├── BoolValueConverter             # bool → int (0/1)
-│   ├── DateTimeValueConverter         # DateTimeInterface → string
-│   ├── EnumValueConverter             # BackedEnum → backing value
-│   ├── JsonValueConverter             # array/stdClass → JSON string
-│   └── DtoExtractor                   # Extracts column/value pairs from DTOs
-├── QueryBuilder\
-│   ├── QueryBuilder                   # Fluent SQL query builder
-│   ├── QueryType                      # Query type enum (Select, Insert, Update, Delete)
-│   └── Compiler\
-│       ├── SqlCompilerInterface       # SQL compiler contract
-│       ├── SelectCompiler             # SELECT SQL generation
-│       ├── InsertCompiler             # INSERT SQL generation
-│       ├── UpdateCompiler             # UPDATE SQL generation
-│       └── DeleteCompiler             # DELETE SQL generation
-└── TypeCaster\
-    ├── TypeCasterInterface            # Type caster contract (DB → PHP)
-    ├── TypeCasterRegistry             # Registry managing multiple casters
-    ├── ScalarTypeCaster               # int, float, bool, string
-    ├── JsonTypeCaster                 # array, stdClass
-    ├── DateTimeTypeCaster             # DateTime, DateTimeImmutable, DateTimeInterface
-    └── EnumTypeCaster                 # BackedEnum
+├── ConnectionInterface
+├── Connection
+├── DataMapper
+├── Hydrator
+├── Extractor
+├── Mapping
+├── TargetResolver
+├── QueryHelper
+├── NameConverter\
+│   ├── NameConverterInterface
+│   └── SnakeCaseToCamelCase
+├── TypeConverter\
+│   ├── TypeConverterInterface
+│   ├── TypeConverterRegistry
+│   ├── ScalarConverter
+│   ├── BoolConverter
+│   ├── DateTimeConverter
+│   ├── JsonConverter
+│   └── EnumConverter
+└── QueryBuilder\
+    ├── QueryBuilder
+    ├── QueryType
+    ├── Dialect\
+    │   ├── DialectInterface
+    │   ├── DialectFactory
+    │   ├── MysqlDialect
+    │   ├── PostgresDialect
+    │   ├── SqliteDialect
+    │   └── GenericDialect
+    └── Compiler\
+        ├── SqlCompilerInterface
+        ├── SqlFragments
+        ├── SelectCompiler
+        ├── InsertCompiler
+        ├── UpsertCompiler
+        ├── UpdateCompiler
+        └── DeleteCompiler
 ```
 
-## Testing
+## Development
 
 ```bash
 composer install
 vendor/bin/phpunit
-```
-
-Static analysis:
-
-```bash
 vendor/bin/phpstan analyse
 ```
 

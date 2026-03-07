@@ -74,7 +74,7 @@ final readonly class DataMapper
             $qb->setParameter($paramName, $value);
         }
 
-        $this->queryHelper->applyWhere($qb, $where, 'w_');
+        $this->queryHelper->applyWhere($qb, $where);
 
         return $qb->executeStatement();
     }
@@ -193,7 +193,7 @@ final readonly class DataMapper
             ->from($table)
             ->setMaxResults(1)
         ;
-        $this->queryHelper->applyWhere($qb, $where, 'w_');
+        $this->queryHelper->applyWhere($qb, $where);
 
         if ($qb->fetchOne() === false) {
             $this->insert($target, $dto);
