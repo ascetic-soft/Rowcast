@@ -191,7 +191,7 @@ final readonly class DataMapper
         $qb = $this->connection->createQueryBuilder()
             ->select('1')
             ->from($table)
-            ->setMaxResults(1)
+            ->setLimit(1)
         ;
         $this->queryHelper->applyWhere($qb, $where);
 
@@ -270,11 +270,11 @@ final readonly class DataMapper
         }
 
         if ($limit !== null) {
-            $qb->setMaxResults($limit);
+            $qb->setLimit($limit);
         }
 
         if ($offset !== null) {
-            $qb->setFirstResult($offset);
+            $qb->setOffset($offset);
         }
 
         return [$qb, $className, $mapping];

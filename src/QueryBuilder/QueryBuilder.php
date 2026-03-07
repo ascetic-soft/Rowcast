@@ -247,22 +247,16 @@ class QueryBuilder
         return $this;
     }
 
-    /**
-     * Sets offset
-     */
-    public function setFirstResult(int $firstResult): self
+    public function setOffset(int $offset): self
     {
-        $this->firstResult = $firstResult;
+        $this->firstResult = $offset;
 
         return $this;
     }
 
-    /**
-     * Sets limit
-     */
-    public function setMaxResults(int $maxResults): self
+    public function setLimit(int $limit): self
     {
-        $this->maxResults = $maxResults;
+        $this->maxResults = $limit;
 
         return $this;
     }

@@ -36,8 +36,8 @@ final class QueryBuilderFluentExecutionTest extends TestCase
             ->andHaving('MAX(u.age) >= 30')
             ->orderBy('u.id', 'desc')
             ->addOrderBy('u.name', 'asc')
-            ->setFirstResult(0)
-            ->setMaxResults(10)
+            ->setOffset(0)
+            ->setLimit(10)
             ->setParameter('min_age', 18)
         ;
 

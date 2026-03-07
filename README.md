@@ -271,10 +271,16 @@ $rows = $connection->createQueryBuilder()
     ->from('users', 'u')
     ->where('u.is_active = :active')
     ->orderBy('u.id', 'DESC')
-    ->setMaxResults(10)
+    ->setOffset(20)
+    ->setLimit(10)
     ->setParameter('active', 1)
     ->fetchAllAssociative();
 ```
+
+For pagination, use:
+
+- `setOffset(int $offset)` — start row
+- `setLimit(int $limit)` — max rows
 
 You can also pass associative arrays to `where()`, `andWhere()`, and `orWhere()`:
 
