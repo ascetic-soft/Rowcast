@@ -78,10 +78,22 @@ final class CompilerAndDialectEdgeCasesTest extends TestCase
         );
 
         $postgres = new PostgresDialect();
+        self::assertSame('SELECT 1', $postgres->applyLimitOffset('SELECT 1', null, 5));
+        self::assertSame('SELECT 1 LIMIT 5 OFFSET 2', $postgres->applyLimitOffset('SELECT 1', 5, 2));
         self::assertSame(
             ' ON CONFLICT (id) DO NOTHING',
             $postgres->compileUpsertClause(['id'], []),
         );
+        self::assertSame(
+            ' ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name',
+            $postgres->compileUpsertClause(['id'], ['name']),
+        );
+
+        self::assertSame('SELECT 1', $sqlite->applyLimitOffset('SELECT 1', null, 5));
+        self::assertSame('SELECT 1 LIMIT 3 OFFSET 1', $sqlite->applyLimitOffset('SELECT 1', 3, 1));
+
+        $generic = new GenericDialect('oci');
+        self::assertSame('SELECT 1', $generic->applyLimitOffset('SELECT 1', 10, 10));
 
         try {
             $sqlite->compileUpsertClause([], ['name']);
@@ -96,6 +108,6 @@ final class CompilerAndDialectEdgeCasesTest extends TestCase
         }
 
         $this->expectException(\LogicException::class);
-        new GenericDialect('oci')->compileUpsertClause(['id'], ['name']);
+        $generic->compileUpsertClause(['id'], ['name']);
     }
 }

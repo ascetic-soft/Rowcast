@@ -57,4 +57,18 @@ final class ExtractorTest extends TestCase
         self::assertSame('{"a":1}', $data['keyword_meta']);
         self::assertArrayNotHasKey('title', $data);
     }
+
+    public function testExtractSkipsUninitializedTypedProperties(): void
+    {
+        $extractor = new Extractor(new SnakeCaseToCamelCase(), TypeConverterRegistry::defaults());
+        $dto = new CardDto();
+        $dto->id = 'c2';
+        $dto->publishData = ['b' => 2];
+
+        $data = $extractor->extract($dto);
+
+        self::assertSame('c2', $data['id']);
+        self::assertArrayNotHasKey('title', $data);
+        self::assertSame('{"b":2}', $data['publish_data']);
+    }
 }

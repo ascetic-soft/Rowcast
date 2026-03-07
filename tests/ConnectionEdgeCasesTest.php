@@ -9,6 +9,15 @@ use PHPUnit\Framework\TestCase;
 
 final class ConnectionEdgeCasesTest extends TestCase
 {
+    public function testStaticCreateBuildsWorkingConnection(): void
+    {
+        $connection = Connection::create('sqlite::memory:');
+        $connection->executeStatement('CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+        $connection->executeStatement('INSERT INTO items (id, name) VALUES (1, "A")');
+
+        self::assertSame('A', $connection->fetchOne('SELECT name FROM items WHERE id = 1'));
+    }
+
     public function testFetchAssociativeReturnsFalseWithoutRows(): void
     {
         $connection = new Connection(new \PDO('sqlite::memory:'));

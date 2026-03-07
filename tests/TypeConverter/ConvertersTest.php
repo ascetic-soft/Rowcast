@@ -76,6 +76,7 @@ final class ConvertersTest extends TestCase
 
         self::assertTrue($converter->supports('array'));
         self::assertFalse($converter->supports('string'));
+        self::assertSame(['raw' => true], $converter->toPhp(['raw' => true], 'array'));
         self::assertSame([], $converter->toPhp('', 'array'));
         self::assertSame(['a' => 1], $converter->toPhp('{"a":1}', 'array'));
         self::assertSame('{"k":"v"}', $converter->toDb(['k' => 'v']));
@@ -107,6 +108,7 @@ final class ConvertersTest extends TestCase
         self::assertTrue($converter->supports(\DateTimeInterface::class));
 
         self::assertInstanceOf(\DateTimeImmutable::class, $converter->toPhp($mutable, \DateTimeInterface::class));
+        self::assertSame($mutable, $converter->toPhp($mutable, \DateTime::class));
         self::assertInstanceOf(\DateTime::class, $converter->toPhp($immutable, \DateTime::class));
         self::assertInstanceOf(\DateTimeImmutable::class, $converter->toPhp('2026-01-01 00:00:00+00:00', \DateTimeImmutable::class));
         self::assertSame('2025-12-31 21:00:00+00:00', $converter->toDb($immutable));
@@ -127,6 +129,7 @@ final class ConvertersTest extends TestCase
 
         self::assertTrue($registry->supports('int'));
         self::assertFalse($registry->supports('resource'));
+        self::assertNull($registry->toDb(null));
         self::assertSame('plain', $registry->toDb('plain'));
 
         $this->expectException(\InvalidArgumentException::class);

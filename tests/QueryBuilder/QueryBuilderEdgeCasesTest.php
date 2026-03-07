@@ -78,4 +78,38 @@ final class QueryBuilderEdgeCasesTest extends TestCase
 
         self::assertSame('SELECT * FROM users WHERE 1 = 1', $sql);
     }
+
+    public function testOrWhereWorksWithoutInitialWhereAndSkipsEmptyPredicate(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+
+        $sqlSingle = $connection->createQueryBuilder()
+            ->select('*')
+            ->from('users')
+            ->orWhere(['id' => 1])
+            ->getSQL();
+        self::assertSame('SELECT * FROM users WHERE id = :w_id', $sqlSingle);
+
+        $sqlSkipped = $connection->createQueryBuilder()
+            ->select('*')
+            ->from('users')
+            ->where(['id' => 1])
+            ->orWhere([])
+            ->getSQL();
+        self::assertSame('SELECT * FROM users WHERE id = :w_id', $sqlSkipped);
+    }
+
+    public function testEmptyNestedGroupsAreIgnored(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+
+        $sql = $connection->createQueryBuilder()
+            ->select('*')
+            ->from('users')
+            ->where(['$or' => []])
+            ->andWhere(['$and' => [['id' => 1]]])
+            ->getSQL();
+
+        self::assertSame('SELECT * FROM users WHERE  AND id = :w_id', $sql);
+    }
 }
