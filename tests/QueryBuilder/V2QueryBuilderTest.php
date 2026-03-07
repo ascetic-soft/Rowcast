@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace AsceticSoft\Rowcast\Tests\QueryBuilder;
 
 use AsceticSoft\Rowcast\Connection;
+use AsceticSoft\Rowcast\ConnectionInterface;
+use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
 use PHPUnit\Framework\TestCase;
 
 final class V2QueryBuilderTest extends TestCase
@@ -158,15 +160,44 @@ final class V2QueryBuilderTest extends TestCase
 
     public function testWhereIlike(): void
     {
-        $connection = new Connection(new \PDO('sqlite::memory:'));
+        $connection = $this->createMock(ConnectionInterface::class);
+        $connection->method('getDriverName')->willReturn('pgsql');
 
-        $sql = $connection->createQueryBuilder()
+        $sql = new QueryBuilder($connection)
             ->select('id')
             ->from('users')
             ->where(['name ILIKE' => '%alice%'])
             ->getSQL();
 
         self::assertSame('SELECT id FROM users WHERE name ILIKE :w_name', $sql);
+    }
+
+    public function testWhereNotIlike(): void
+    {
+        $connection = $this->createMock(ConnectionInterface::class);
+        $connection->method('getDriverName')->willReturn('pgsql');
+
+        $sql = new QueryBuilder($connection)
+            ->select('id')
+            ->from('users')
+            ->where(['name NOT ILIKE' => '%bot%'])
+            ->getSQL();
+
+        self::assertSame('SELECT id FROM users WHERE name NOT ILIKE :w_name', $sql);
+    }
+
+    public function testWhereIlikeThrowsForSqliteDialect(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Unsupported WHERE operator "ILIKE"');
+
+        $connection->createQueryBuilder()
+            ->select('id')
+            ->from('users')
+            ->where(['name ILIKE' => '%alice%'])
+            ->getSQL();
     }
 
     public function testWhereBetween(): void

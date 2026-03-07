@@ -112,4 +112,30 @@ final class QueryBuilderEdgeCasesTest extends TestCase
 
         self::assertSame('SELECT * FROM users WHERE  AND id = :w_id', $sql);
     }
+
+    public function testWhereAndGroupCanBeEmpty(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+
+        $sql = $connection->createQueryBuilder()
+            ->select('*')
+            ->from('users')
+            ->where(['$and' => []])
+            ->getSQL();
+
+        self::assertSame('SELECT * FROM users WHERE ', $sql);
+    }
+
+    public function testWhereKeyMustContainFieldName(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('WHERE key must contain a field name.');
+        $connection->createQueryBuilder()
+            ->select('*')
+            ->from('users')
+            ->where(['' => 'value'])
+            ->getSQL();
+    }
 }

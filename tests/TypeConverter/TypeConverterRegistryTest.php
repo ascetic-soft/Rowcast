@@ -26,6 +26,8 @@ final class TypeConverterRegistryTest extends TestCase
 
         $date = $registry->toPhp('2026-03-07 12:00:00+00:00', \DateTimeImmutable::class);
         self::assertInstanceOf(\DateTimeImmutable::class, $date);
+        $mutableDate = $registry->toPhp('2026-03-07 12:00:00+00:00', \DateTime::class);
+        self::assertInstanceOf(\DateTime::class, $mutableDate);
 
         $array = $registry->toPhp('["a","b"]', 'array');
         self::assertSame(['a', 'b'], $array);
@@ -44,5 +46,8 @@ final class TypeConverterRegistryTest extends TestCase
 
         $date = new \DateTimeImmutable('2026-03-07 12:00:00+03:00');
         self::assertSame('2026-03-07 09:00:00+00:00', $registry->toDb($date));
+
+        $unknown = new \stdClass();
+        self::assertSame($unknown, $registry->toDb($unknown));
     }
 }

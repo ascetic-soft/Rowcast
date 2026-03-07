@@ -530,7 +530,7 @@ class QueryBuilder
             return null;
         }
 
-        if (count($compiledGroups) === 1) {
+        if (\count($compiledGroups) === 1) {
             return $compiledGroups[0];
         }
 
@@ -560,7 +560,7 @@ class QueryBuilder
             return null;
         }
 
-        if (count($compiledGroups) === 1) {
+        if (\count($compiledGroups) === 1) {
             return $compiledGroups[0];
         }
 
@@ -630,7 +630,7 @@ class QueryBuilder
         }
 
         if ($operator === 'BETWEEN') {
-            if (!\is_array($value) || count($value) !== 2) {
+            if (!\is_array($value) || \count($value) !== 2) {
                 throw new \LogicException(\sprintf('WHERE "%s BETWEEN" expects [from, to].', $field));
             }
 
@@ -643,7 +643,8 @@ class QueryBuilder
             return $field . ' BETWEEN :' . $fromParam . ' AND :' . $toParam;
         }
 
-        if (\in_array($operator, ['>', '>=', '<', '<=', 'LIKE', 'ILIKE', 'NOT LIKE'], true)) {
+        $supportedOperators = $this->getDialect()->getSupportedOperators();
+        if (isset($supportedOperators[$operator])) {
             $parameter = $this->nextWhereParameterName($field);
             $this->parameters[$parameter] = $value;
 

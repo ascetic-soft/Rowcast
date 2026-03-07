@@ -70,12 +70,16 @@ final class CompilerAndDialectEdgeCasesTest extends TestCase
         self::assertSame('SELECT 1', $mysql->applyLimitOffset('SELECT 1', null, null));
         self::assertSame('SELECT 1 LIMIT 10 OFFSET 5', $mysql->applyLimitOffset('SELECT 1', 10, 5));
         self::assertSame('', $mysql->compileUpsertClause(['id'], []));
+        self::assertTrue(isset($mysql->getSupportedOperators()['LIKE']));
+        self::assertFalse(isset($mysql->getSupportedOperators()['ILIKE']));
 
         $sqlite = new SqliteDialect();
         self::assertSame(
             ' ON CONFLICT (id) DO NOTHING',
             $sqlite->compileUpsertClause(['id'], []),
         );
+        self::assertTrue(isset($sqlite->getSupportedOperators()['NOT LIKE']));
+        self::assertFalse(isset($sqlite->getSupportedOperators()['NOT ILIKE']));
 
         $postgres = new PostgresDialect();
         self::assertSame('SELECT 1', $postgres->applyLimitOffset('SELECT 1', null, 5));
@@ -88,12 +92,16 @@ final class CompilerAndDialectEdgeCasesTest extends TestCase
             ' ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name',
             $postgres->compileUpsertClause(['id'], ['name']),
         );
+        self::assertTrue(isset($postgres->getSupportedOperators()['ILIKE']));
+        self::assertTrue(isset($postgres->getSupportedOperators()['NOT ILIKE']));
 
         self::assertSame('SELECT 1', $sqlite->applyLimitOffset('SELECT 1', null, 5));
         self::assertSame('SELECT 1 LIMIT 3 OFFSET 1', $sqlite->applyLimitOffset('SELECT 1', 3, 1));
 
         $generic = new GenericDialect('oci');
         self::assertSame('SELECT 1', $generic->applyLimitOffset('SELECT 1', 10, 10));
+        self::assertTrue(isset($generic->getSupportedOperators()['>=']));
+        self::assertFalse(isset($generic->getSupportedOperators()['ILIKE']));
 
         try {
             $sqlite->compileUpsertClause([], ['name']);

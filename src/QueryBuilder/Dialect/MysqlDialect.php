@@ -4,23 +4,8 @@ declare(strict_types=1);
 
 namespace AsceticSoft\Rowcast\QueryBuilder\Dialect;
 
-final class MysqlDialect implements DialectInterface
+final class MysqlDialect extends AbstractStandardDialect
 {
-    public function applyLimitOffset(string $sql, ?int $limit, ?int $offset): string
-    {
-        if ($limit === null) {
-            return $sql;
-        }
-
-        $sql .= ' LIMIT ' . $limit;
-
-        if (($offset ?? 0) > 0) {
-            $sql .= ' OFFSET ' . $offset;
-        }
-
-        return $sql;
-    }
-
     public function compileUpsertClause(array $conflictColumns, array $updateColumns): string
     {
         if ($updateColumns === []) {

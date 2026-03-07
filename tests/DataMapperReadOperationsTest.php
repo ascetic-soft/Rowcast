@@ -96,6 +96,13 @@ final class DataMapperReadOperationsTest extends TestCase
         self::assertSame('updated@example.com', $this->connection->fetchOne('SELECT email FROM user_dtos WHERE id = 20'));
     }
 
+    public function testFindOneReturnsNullWhenRowDoesNotExist(): void
+    {
+        $found = $this->mapper->findOne(UserDto::class, ['id' => 9999]);
+
+        self::assertNull($found);
+    }
+
     public function testMappingTargetWorksWithHydrateExtractAndFindAll(): void
     {
         $mapping = Mapping::auto(CardDto::class, 'cards')->column('keyword_meta', 'publishData');

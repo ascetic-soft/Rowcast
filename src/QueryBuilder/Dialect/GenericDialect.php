@@ -20,4 +20,19 @@ final readonly class GenericDialect implements DialectInterface
     {
         throw new \LogicException(\sprintf('UPSERT is not supported for driver "%s".', $this->driverName));
     }
+
+    /**
+     * @return array<string, true>
+     */
+    public function getSupportedOperators(): array
+    {
+        return [
+            '>' => true,
+            '>=' => true,
+            '<' => true,
+            '<=' => true,
+            'LIKE' => true,
+            'NOT LIKE' => true,
+        ];
+    }
 }

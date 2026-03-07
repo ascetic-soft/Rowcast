@@ -13,4 +13,9 @@ interface DialectInterface
      * @param list<string> $updateColumns
      */
     public function compileUpsertClause(array $conflictColumns, array $updateColumns): string;
+
+    /**
+     * @return array<string, true>
+     */
+    public function getSupportedOperators(): array;
 }

@@ -87,4 +87,17 @@ final class ConnectionEdgeCasesTest extends TestCase
         self::assertSame('ok', $result);
         self::assertSame('1', (string) $connection->fetchOne('SELECT COUNT(*) FROM items'));
     }
+
+    public function testNestedRollbackAtLevelOneUsesRootRollback(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), true);
+        $connection->executeStatement('CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+
+        $connection->beginTransaction();
+        $connection->executeStatement('INSERT INTO items (id, name) VALUES (1, "A")');
+        $connection->rollBack();
+
+        self::assertSame(0, $connection->getTransactionNestingLevel());
+        self::assertSame('0', (string) $connection->fetchOne('SELECT COUNT(*) FROM items'));
+    }
 }
