@@ -21,11 +21,6 @@ final readonly class InsertCompiler implements SqlCompilerInterface
             throw new \LogicException('INSERT requires table and values.');
         }
 
-        $columns = array_keys($this->values);
-        $placeholders = array_values($this->values);
-
-        return 'INSERT INTO ' . $this->table
-            . ' (' . implode(', ', $columns) . ')'
-            . ' VALUES (' . implode(', ', $placeholders) . ')';
+        return SqlFragments::buildInsertSql($this->table, $this->values);
     }
 }

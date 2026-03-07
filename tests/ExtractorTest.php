@@ -6,15 +6,18 @@ namespace AsceticSoft\Rowcast\Tests;
 
 use AsceticSoft\Rowcast\Extractor;
 use AsceticSoft\Rowcast\Mapping;
+use AsceticSoft\Rowcast\NameConverter\SnakeCaseToCamelCase;
 use AsceticSoft\Rowcast\Tests\Fixtures\CardDto;
 use AsceticSoft\Rowcast\Tests\Fixtures\UserDto;
 use AsceticSoft\Rowcast\Tests\Fixtures\UserStatus;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 use PHPUnit\Framework\TestCase;
 
 final class ExtractorTest extends TestCase
 {
     public function testExtractAutoModeConvertsTypes(): void
     {
+        $extractor = new Extractor(new SnakeCaseToCamelCase(), TypeConverterRegistry::defaults());
         $dto = new UserDto();
         $dto->id = 7;
         $dto->email = 'u@x.com';
@@ -24,7 +27,7 @@ final class ExtractorTest extends TestCase
         $dto->status = UserStatus::Inactive;
         $dto->previousStatus = null;
 
-        $data = new Extractor()->extract($dto);
+        $data = $extractor->extract($dto);
 
         self::assertSame(7, $data['id']);
         self::assertSame('u@x.com', $data['email']);
@@ -38,6 +41,7 @@ final class ExtractorTest extends TestCase
 
     public function testExtractAutoModeSupportsOverrideAndIgnore(): void
     {
+        $extractor = new Extractor(new SnakeCaseToCamelCase(), TypeConverterRegistry::defaults());
         $dto = new CardDto();
         $dto->id = 'c1';
         $dto->title = 'Card';
@@ -47,7 +51,7 @@ final class ExtractorTest extends TestCase
             ->column('keyword_meta', 'publishData')
             ->ignore('title');
 
-        $data = new Extractor()->extract($dto, $mapping);
+        $data = $extractor->extract($dto, $mapping);
 
         self::assertSame('c1', $data['id']);
         self::assertSame('{"a":1}', $data['keyword_meta']);

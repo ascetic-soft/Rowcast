@@ -23,8 +23,9 @@ final readonly class DeleteCompiler implements SqlCompilerInterface
 
         $sql = 'DELETE FROM ' . $this->table;
 
-        if ($this->where !== []) {
-            $sql .= ' WHERE ' . implode(' AND ', $this->where);
+        $whereClause = SqlFragments::compileWhere($this->where);
+        if ($whereClause !== null) {
+            $sql .= ' ' . $whereClause;
         }
 
         return $sql;

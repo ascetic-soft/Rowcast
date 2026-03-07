@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AsceticSoft\Rowcast\QueryBuilder\Compiler;
 
+use AsceticSoft\Rowcast\QueryBuilder\Dialect\DialectInterface;
+
 final readonly class UpsertCompiler implements SqlCompilerInterface
 {
     /**
@@ -16,7 +18,7 @@ final readonly class UpsertCompiler implements SqlCompilerInterface
         private array $values,
         private array $conflictColumns,
         private array $updateColumns,
-        private string $driverName,
+        private DialectInterface $dialect,
     ) {
     }
 
@@ -26,44 +28,8 @@ final readonly class UpsertCompiler implements SqlCompilerInterface
             throw new \LogicException('UPSERT requires table and values.');
         }
 
-        $columns = array_keys($this->values);
-        $placeholders = array_values($this->values);
-        $sql = 'INSERT INTO ' . $this->table
-            . ' (' . implode(', ', $columns) . ')'
-            . ' VALUES (' . implode(', ', $placeholders) . ')';
+        $sql = SqlFragments::buildInsertSql($this->table, $this->values);
 
-        if ($this->driverName === 'mysql') {
-            if ($this->updateColumns === []) {
-                return $sql;
-            }
-
-            $parts = array_map(
-                static fn (string $column): string => $column . ' = VALUES(' . $column . ')',
-                $this->updateColumns,
-            );
-
-            return $sql . ' ON DUPLICATE KEY UPDATE ' . implode(', ', $parts);
-        }
-
-        if ($this->driverName === 'pgsql' || $this->driverName === 'sqlite') {
-            if ($this->conflictColumns === []) {
-                throw new \LogicException('UPSERT requires conflict columns for pgsql/sqlite.');
-            }
-
-            if ($this->updateColumns === []) {
-                return $sql . ' ON CONFLICT (' . implode(', ', $this->conflictColumns) . ') DO NOTHING';
-            }
-
-            $parts = array_map(
-                static fn (string $column): string => $column . ' = EXCLUDED.' . $column,
-                $this->updateColumns,
-            );
-
-            return $sql
-                . ' ON CONFLICT (' . implode(', ', $this->conflictColumns) . ')'
-                . ' DO UPDATE SET ' . implode(', ', $parts);
-        }
-
-        throw new \LogicException(\sprintf('UPSERT is not supported for driver "%s".', $this->driverName));
+        return $sql . $this->dialect->compileUpsertClause($this->conflictColumns, $this->updateColumns);
     }
 }

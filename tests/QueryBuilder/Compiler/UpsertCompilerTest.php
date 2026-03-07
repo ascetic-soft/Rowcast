@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace AsceticSoft\Rowcast\Tests\QueryBuilder\Compiler;
 
 use AsceticSoft\Rowcast\QueryBuilder\Compiler\UpsertCompiler;
+use AsceticSoft\Rowcast\QueryBuilder\Dialect\MysqlDialect;
+use AsceticSoft\Rowcast\QueryBuilder\Dialect\PostgresDialect;
 use PHPUnit\Framework\TestCase;
 
 final class UpsertCompilerTest extends TestCase
@@ -16,7 +18,7 @@ final class UpsertCompilerTest extends TestCase
             values: ['id' => ':id', 'title' => ':title'],
             conflictColumns: ['id'],
             updateColumns: ['title'],
-            driverName: 'pgsql',
+            dialect: new PostgresDialect(),
         )->compile();
 
         self::assertSame(
@@ -32,7 +34,7 @@ final class UpsertCompilerTest extends TestCase
             values: ['id' => ':id', 'title' => ':title'],
             conflictColumns: ['id'],
             updateColumns: ['title'],
-            driverName: 'mysql',
+            dialect: new MysqlDialect(),
         )->compile();
 
         self::assertSame(

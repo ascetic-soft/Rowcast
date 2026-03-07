@@ -10,6 +10,8 @@ use AsceticSoft\Rowcast\QueryBuilder\Compiler\InsertCompiler;
 use AsceticSoft\Rowcast\QueryBuilder\Compiler\SelectCompiler;
 use AsceticSoft\Rowcast\QueryBuilder\Compiler\UpsertCompiler;
 use AsceticSoft\Rowcast\QueryBuilder\Compiler\UpdateCompiler;
+use AsceticSoft\Rowcast\QueryBuilder\Dialect\DialectFactory;
+use AsceticSoft\Rowcast\QueryBuilder\Dialect\DialectInterface;
 
 /**
  * Doctrine DBAL-like query builder.
@@ -64,6 +66,8 @@ class QueryBuilder
 
     /** @var array<string|int, mixed> */
     private array $parameters = [];
+
+    private ?DialectInterface $dialect = null;
 
     public function __construct(
         private readonly ConnectionInterface $connection,
@@ -226,10 +230,7 @@ class QueryBuilder
     public function insert(string $table): self
     {
         $this->type = QueryType::Insert;
-        $this->insertTable = $table;
-        $this->insertValues = [];
-        $this->upsertConflictColumns = [];
-        $this->upsertUpdateColumns = [];
+        $this->resetInsertState($table);
 
         return $this;
     }
@@ -237,10 +238,7 @@ class QueryBuilder
     public function upsert(string $table): self
     {
         $this->type = QueryType::Upsert;
-        $this->insertTable = $table;
-        $this->insertValues = [];
-        $this->upsertConflictColumns = [];
-        $this->upsertUpdateColumns = [];
+        $this->resetInsertState($table);
 
         return $this;
     }
@@ -377,7 +375,7 @@ class QueryBuilder
                 $this->orderBy,
                 $this->maxResults,
                 $this->firstResult,
-                $this->connection->getDriverName(),
+                $this->getDialect(),
             )->compile(),
             QueryType::Insert => new InsertCompiler(
                 $this->insertTable,
@@ -388,7 +386,7 @@ class QueryBuilder
                 $this->insertValues,
                 $this->upsertConflictColumns,
                 $this->upsertUpdateColumns,
-                $this->connection->getDriverName(),
+                $this->getDialect(),
             )->compile(),
             QueryType::Update => new UpdateCompiler(
                 $this->updateTable,
@@ -401,6 +399,21 @@ class QueryBuilder
             )->compile(),
             null => throw new \LogicException('No query type (select/insert/update/delete) has been specified.'),
         };
+    }
+
+    private function resetInsertState(string $table): void
+    {
+        $this->insertTable = $table;
+        $this->insertValues = [];
+        $this->upsertConflictColumns = [];
+        $this->upsertUpdateColumns = [];
+    }
+
+    private function getDialect(): DialectInterface
+    {
+        $this->dialect ??= DialectFactory::fromDriverName($this->connection->getDriverName());
+
+        return $this->dialect;
     }
 
     /**

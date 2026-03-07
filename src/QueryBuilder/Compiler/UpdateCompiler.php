@@ -30,8 +30,9 @@ final readonly class UpdateCompiler implements SqlCompilerInterface
 
         $sql = 'UPDATE ' . $this->table . ' SET ' . implode(', ', $setParts);
 
-        if ($this->where !== []) {
-            $sql .= ' WHERE ' . implode(' AND ', $this->where);
+        $whereClause = SqlFragments::compileWhere($this->where);
+        if ($whereClause !== null) {
+            $sql .= ' ' . $whereClause;
         }
 
         return $sql;

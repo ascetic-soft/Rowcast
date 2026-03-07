@@ -9,13 +9,15 @@ use AsceticSoft\Rowcast\Mapping;
 use AsceticSoft\Rowcast\Tests\Fixtures\CardDto;
 use AsceticSoft\Rowcast\Tests\Fixtures\UserDto;
 use AsceticSoft\Rowcast\Tests\Fixtures\UserStatus;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
+use AsceticSoft\Rowcast\NameConverter\SnakeCaseToCamelCase;
 use PHPUnit\Framework\TestCase;
 
 final class HydratorTest extends TestCase
 {
     public function testHydrateAutoModeCastsTypes(): void
     {
-        $hydrator = new Hydrator();
+        $hydrator = new Hydrator(TypeConverterRegistry::defaults(), new SnakeCaseToCamelCase());
         $row = [
             'id' => '7',
             'email' => 'user@example.com',
@@ -38,7 +40,7 @@ final class HydratorTest extends TestCase
 
     public function testHydrateAutoModeSupportsOverride(): void
     {
-        $hydrator = new Hydrator();
+        $hydrator = new Hydrator(TypeConverterRegistry::defaults(), new SnakeCaseToCamelCase());
         $mapping = Mapping::auto(CardDto::class, 'cards')
             ->column('keyword_meta', 'publishData');
 

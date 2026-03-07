@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace AsceticSoft\Rowcast;
 
+use AsceticSoft\Rowcast\NameConverter\NameConverterInterface;
+
 final class Mapping
 {
     /** @var array<string, string> column => property */
     private array $columns = [];
+
+    /** @var array<string, string>|null property => column */
+    private ?array $propertyToColumn = null;
 
     /** @var array<string, true> */
     private array $ignored = [];
@@ -41,6 +46,7 @@ final class Mapping
     public function column(string $columnName, string $propertyName): self
     {
         $this->columns[$columnName] = $propertyName;
+        $this->propertyToColumn = null;
 
         return $this;
     }
@@ -92,8 +98,44 @@ final class Mapping
 
     public function getColumnForProperty(string $propertyName): ?string
     {
-        $columns = array_flip($this->columns);
+        $this->propertyToColumn ??= array_flip($this->columns);
 
-        return $columns[$propertyName] ?? null;
+        return $this->propertyToColumn[$propertyName] ?? null;
+    }
+
+    /**
+     * @param \ReflectionClass<object> $reflectionClass
+     * @return array<string, string> column => property
+     */
+    public static function resolvePropertiesFor(
+        ?self $mapping,
+        \ReflectionClass $reflectionClass,
+        NameConverterInterface $nameConverter,
+    ): array {
+        $result = [];
+        if ($mapping !== null && !$mapping->isAutoDiscover()) {
+            foreach ($mapping->getColumns() as $columnName => $propertyName) {
+                if ($mapping->isIgnored($propertyName) || !$reflectionClass->hasProperty($propertyName)) {
+                    continue;
+                }
+
+                $result[$columnName] = $propertyName;
+            }
+
+            return $result;
+        }
+
+        foreach ($reflectionClass->getProperties() as $property) {
+            $propertyName = $property->getName();
+            if ($mapping?->isIgnored($propertyName) === true) {
+                continue;
+            }
+
+            $columnName = $mapping?->getColumnForProperty($propertyName)
+                ?? $nameConverter->toColumnName($propertyName);
+            $result[$columnName] = $propertyName;
+        }
+
+        return $result;
     }
 }

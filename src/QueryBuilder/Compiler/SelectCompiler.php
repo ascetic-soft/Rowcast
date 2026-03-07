@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AsceticSoft\Rowcast\QueryBuilder\Compiler;
 
+use AsceticSoft\Rowcast\QueryBuilder\Dialect\DialectInterface;
+
 final readonly class SelectCompiler implements SqlCompilerInterface
 {
     /**
@@ -23,9 +25,9 @@ final readonly class SelectCompiler implements SqlCompilerInterface
         private array   $groupBy,
         private array   $having,
         private array   $orderBy,
-        private ?int    $maxResults,
-        private ?int    $firstResult,
-        private string  $driverName,
+        private ?int $maxResults,
+        private ?int $firstResult,
+        private DialectInterface $dialect,
     ) {
     }
 
@@ -44,8 +46,9 @@ final readonly class SelectCompiler implements SqlCompilerInterface
             $parts[] = $type . ' JOIN ' . $joinTable . ' ' . $joinAlias . ' ON ' . $condition;
         }
 
-        if ($this->where !== []) {
-            $parts[] = 'WHERE ' . implode(' AND ', $this->where);
+        $whereClause = SqlFragments::compileWhere($this->where);
+        if ($whereClause !== null) {
+            $parts[] = $whereClause;
         }
 
         if ($this->groupBy !== []) {
@@ -60,20 +63,6 @@ final readonly class SelectCompiler implements SqlCompilerInterface
             $parts[] = 'ORDER BY ' . implode(', ', $this->orderBy);
         }
 
-        $sql = implode(' ', $parts);
-
-        if ($this->maxResults !== null) {
-            $limit = $this->maxResults;
-            $offset = $this->firstResult ?? 0;
-
-            if ($this->driverName === 'sqlite' || $this->driverName === 'mysql' || $this->driverName === 'pgsql') {
-                $sql .= ' LIMIT ' . $limit;
-                if ($offset > 0) {
-                    $sql .= ' OFFSET ' . $offset;
-                }
-            }
-        }
-
-        return $sql;
+        return $this->dialect->applyLimitOffset(implode(' ', $parts), $this->maxResults, $this->firstResult);
     }
 }

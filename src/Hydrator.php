@@ -5,21 +5,14 @@ declare(strict_types=1);
 namespace AsceticSoft\Rowcast;
 
 use AsceticSoft\Rowcast\NameConverter\NameConverterInterface;
-use AsceticSoft\Rowcast\NameConverter\SnakeCaseToCamelCase;
 use AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface;
-use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 
 final readonly class Hydrator
 {
-    private TypeConverterInterface $typeConverter;
-    private NameConverterInterface $nameConverter;
-
     public function __construct(
-        ?TypeConverterInterface $typeConverter = null,
-        ?NameConverterInterface $nameConverter = null,
+        private TypeConverterInterface $typeConverter,
+        private NameConverterInterface $nameConverter,
     ) {
-        $this->typeConverter = $typeConverter ?? TypeConverterRegistry::defaults();
-        $this->nameConverter = $nameConverter ?? new SnakeCaseToCamelCase();
     }
 
     /**
@@ -31,33 +24,13 @@ final readonly class Hydrator
         $reflectionClass = new \ReflectionClass($className);
         $object = $reflectionClass->newInstanceWithoutConstructor();
 
-        if ($mapping !== null && !$mapping->isAutoDiscover()) {
-            foreach ($mapping->getColumns() as $columnName => $propertyName) {
-                if (!\array_key_exists($columnName, $row) || $mapping->isIgnored($propertyName)) {
-                    continue;
-                }
-
-                $property = $reflectionClass->getProperty($propertyName);
-                $this->setProperty($object, $property, $row[$columnName]);
-            }
-
-            return $object;
-        }
-
-        foreach ($row as $columnName => $value) {
-            $propertyName = $mapping?->getPropertyForColumn($columnName)
-                ?? $this->nameConverter->toPropertyName($columnName);
-
-            if ($mapping?->isIgnored($propertyName) === true) {
-                continue;
-            }
-
-            if (!$reflectionClass->hasProperty($propertyName)) {
+        foreach (Mapping::resolvePropertiesFor($mapping, $reflectionClass, $this->nameConverter) as $columnName => $propertyName) {
+            if (!\array_key_exists($columnName, $row)) {
                 continue;
             }
 
             $property = $reflectionClass->getProperty($propertyName);
-            $this->setProperty($object, $property, $value);
+            $this->setProperty($object, $property, $row[$columnName]);
         }
 
         return $object;
