@@ -20,6 +20,33 @@ final class SqlFragments
     }
 
     /**
+     * @param list<string> $columns
+     */
+    public static function buildMultiRowInsertSql(string $table, array $columns, int $rowCount): string
+    {
+        if ($columns === []) {
+            throw new \LogicException('Multi-row INSERT requires at least one column.');
+        }
+
+        if ($rowCount < 1) {
+            throw new \LogicException('Multi-row INSERT requires at least one row.');
+        }
+
+        $rows = [];
+        for ($rowIndex = 0; $rowIndex < $rowCount; ++$rowIndex) {
+            $placeholders = array_map(
+                static fn (string $column): string => ':' . $column . '_' . $rowIndex,
+                $columns,
+            );
+            $rows[] = '(' . implode(', ', $placeholders) . ')';
+        }
+
+        return 'INSERT INTO ' . $table
+            . ' (' . implode(', ', $columns) . ')'
+            . ' VALUES ' . implode(', ', $rows);
+    }
+
+    /**
      * @param list<string> $where
      */
     public static function compileWhere(array $where): ?string

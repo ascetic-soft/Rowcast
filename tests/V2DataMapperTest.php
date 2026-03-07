@@ -99,6 +99,79 @@ final class V2DataMapperTest extends TestCase
         self::assertSame(['score' => 10], $found->publishData);
     }
 
+    public function testBatchInsertSupportsChunkingOnSqlite(): void
+    {
+        $users = [];
+        for ($i = 1; $i <= 150; ++$i) {
+            $users[] = $this->createUser(
+                $i,
+                'insert-' . $i . '@x.com',
+                $i % 2 === 0 ? UserStatus::Active : UserStatus::Inactive,
+            );
+        }
+
+        $this->mapper->batchInsert(UserDto::class, $users, 21);
+
+        self::assertSame(150, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM user_dtos'));
+        self::assertSame(
+            'insert-150@x.com',
+            $this->connection->fetchOne('SELECT email FROM user_dtos WHERE id = 150'),
+        );
+    }
+
+    public function testBatchUpsertSupportsChunkingOnSqlite(): void
+    {
+        $initial = [];
+        for ($i = 1; $i <= 150; ++$i) {
+            $initial[] = $this->createUser($i, 'seed-' . $i . '@x.com', UserStatus::Active);
+        }
+        $this->mapper->batchInsert(UserDto::class, $initial, 21);
+
+        $upsert = [];
+        for ($i = 1; $i <= 160; ++$i) {
+            $upsert[] = $this->createUser($i, 'upsert-' . $i . '@x.com', UserStatus::Inactive);
+        }
+
+        $this->mapper->batchUpsert(UserDto::class, $upsert, ['id'], 21);
+
+        self::assertSame(160, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM user_dtos'));
+        self::assertSame(
+            'upsert-1@x.com',
+            $this->connection->fetchOne('SELECT email FROM user_dtos WHERE id = 1'),
+        );
+        self::assertSame(
+            'upsert-160@x.com',
+            $this->connection->fetchOne('SELECT email FROM user_dtos WHERE id = 160'),
+        );
+    }
+
+    public function testBatchUpdateUpdatesRowsByIdentity(): void
+    {
+        $initial = [
+            $this->createUser(1, 'before-1@x.com', UserStatus::Active),
+            $this->createUser(2, 'before-2@x.com', UserStatus::Active),
+            $this->createUser(3, 'before-3@x.com', UserStatus::Inactive),
+        ];
+        $this->mapper->batchInsert(UserDto::class, $initial, 21);
+
+        $updated = [
+            $this->createUser(1, 'after-1@x.com', UserStatus::Inactive),
+            $this->createUser(2, 'after-2@x.com', UserStatus::Inactive),
+            $this->createUser(3, 'after-3@x.com', UserStatus::Active),
+        ];
+
+        $this->mapper->batchUpdate(UserDto::class, $updated, ['id'], 21);
+
+        self::assertSame(
+            'after-2@x.com',
+            $this->connection->fetchOne('SELECT email FROM user_dtos WHERE id = 2'),
+        );
+        self::assertSame(
+            'active',
+            $this->connection->fetchOne('SELECT status FROM user_dtos WHERE id = 3'),
+        );
+    }
+
     private function createUser(int $id, string $email, UserStatus $status): UserDto
     {
         $user = new UserDto();

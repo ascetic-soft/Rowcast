@@ -21,6 +21,11 @@ abstract class AbstractStandardDialect implements DialectInterface
         return $sql;
     }
 
+    public function getMaxBindParameters(): int
+    {
+        return 65535;
+    }
+
     /**
      * @return array<string, true>
      */

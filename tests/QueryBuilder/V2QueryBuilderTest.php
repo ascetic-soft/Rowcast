@@ -98,6 +98,19 @@ final class V2QueryBuilderTest extends TestCase
         self::assertSame('SELECT id FROM users WHERE id IN (:w_id, :w_id_1, :w_id_2)', $sql);
     }
 
+    public function testWhereExplicitInGeneratesIn(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+
+        $sql = $connection->createQueryBuilder()
+            ->select('id')
+            ->from('users')
+            ->where(['status IN' => ['active', 'pending']])
+            ->getSQL();
+
+        self::assertSame('SELECT id FROM users WHERE status IN (:w_status, :w_status_1)', $sql);
+    }
+
     public function testWhereNotEqualArrayGeneratesNotIn(): void
     {
         $connection = new Connection(new \PDO('sqlite::memory:'));

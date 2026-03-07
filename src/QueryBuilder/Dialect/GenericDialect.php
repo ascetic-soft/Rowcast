@@ -16,6 +16,11 @@ final readonly class GenericDialect implements DialectInterface
         return $sql;
     }
 
+    public function getMaxBindParameters(): int
+    {
+        return 65535;
+    }
+
     public function compileUpsertClause(array $conflictColumns, array $updateColumns): string
     {
         throw new \LogicException(\sprintf('UPSERT is not supported for driver "%s".', $this->driverName));

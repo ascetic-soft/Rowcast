@@ -49,6 +49,16 @@ final class DataMapperEdgeCasesTest extends TestCase
         $this->mapper->update($mapping, $dto, ['id' => 1]);
     }
 
+    public function testUpsertThrowsWhenNoDataExtracted(): void
+    {
+        $mapping = Mapping::auto(UserDto::class, 'user_dtos')
+            ->ignore('id', 'email', 'isActive', 'tags', 'createdAt', 'status', 'previousStatus');
+        $dto = $this->createUser(11, 'upsert-empty@x.com');
+
+        $this->expectException(\LogicException::class);
+        $this->mapper->upsert($mapping, $dto, 'id');
+    }
+
     public function testUpdateAndDeleteValidateWhere(): void
     {
         $dto = $this->createUser(2, 'b@x.com');
@@ -88,6 +98,103 @@ final class DataMapperEdgeCasesTest extends TestCase
 
         $this->expectException(\LogicException::class);
         $this->mapper->upsert($mapping, $dto, 'id');
+    }
+
+    public function testBatchMethodsValidationAndNoopBranches(): void
+    {
+        $dto = $this->createUser(4, 'd@x.com');
+
+        // No-op on empty input
+        $this->mapper->batchInsert(UserDto::class, []);
+        $this->mapper->batchUpsert(UserDto::class, [], ['id']);
+        $this->mapper->batchUpdate(UserDto::class, [], ['id']);
+        self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM user_dtos'));
+
+        try {
+            $this->mapper->batchUpsert(UserDto::class, [$dto], []);
+            self::fail('Expected batchUpsert to require conflict properties.');
+        } catch (\LogicException) {
+        }
+
+        $this->expectException(\LogicException::class);
+        $this->mapper->batchUpdate(UserDto::class, [$dto], []);
+    }
+
+    public function testBatchMethodsThrowForInvalidMaxBindParameters(): void
+    {
+        $dto = $this->createUser(5, 'e@x.com');
+
+        try {
+            $this->mapper->batchInsert(UserDto::class, [$dto], 0);
+            self::fail('Expected batchInsert to fail for maxBindParameters <= 0.');
+        } catch (\LogicException) {
+        }
+
+        try {
+            $this->mapper->batchUpsert(UserDto::class, [$dto], ['id'], 0);
+            self::fail('Expected batchUpsert to fail for maxBindParameters <= 0.');
+        } catch (\LogicException) {
+        }
+
+        $this->expectException(\LogicException::class);
+        $this->mapper->batchUpdate(UserDto::class, [$dto], ['id'], 0);
+    }
+
+    public function testBatchInsertThrowsWhenColumnsExceedMaxBindParameters(): void
+    {
+        $dto = $this->createUser(12, 'too-many-cols@x.com');
+
+        $this->expectException(\LogicException::class);
+        $this->mapper->batchInsert(UserDto::class, [$dto], 1);
+    }
+
+    public function testBatchMethodsThrowForMappingAndIdentityEdgeCases(): void
+    {
+        $dto = $this->createUser(6, 'f@x.com');
+
+        $emptyMapping = Mapping::auto(UserDto::class, 'user_dtos')
+            ->ignore('id', 'email', 'isActive', 'tags', 'createdAt', 'status', 'previousStatus');
+
+        try {
+            $this->mapper->batchUpsert($emptyMapping, [$dto], ['id']);
+            self::fail('Expected batchUpsert to fail when extracted data is empty.');
+        } catch (\LogicException) {
+        }
+
+        try {
+            $this->mapper->batchInsert($emptyMapping, [$dto]);
+            self::fail('Expected batchInsert to fail when extracted data is empty.');
+        } catch (\LogicException) {
+        }
+
+        $missingIdentityMapping = Mapping::auto(UserDto::class, 'user_dtos')->ignore('id');
+        try {
+            $this->mapper->batchUpdate($missingIdentityMapping, [$dto], ['id']);
+            self::fail('Expected batchUpdate to fail when identity is not extracted.');
+        } catch (\LogicException) {
+        }
+
+        try {
+            $this->mapper->batchUpsert($missingIdentityMapping, [$dto], ['id']);
+            self::fail('Expected batchUpsert to fail when conflict property is not extracted.');
+        } catch (\LogicException) {
+        }
+
+        $allIdentityProperties = ['id', 'email', 'isActive', 'tags', 'createdAt', 'status', 'previousStatus'];
+        try {
+            $this->mapper->batchUpdate(UserDto::class, [$dto], $allIdentityProperties);
+            self::fail('Expected batchUpdate to fail when no columns remain to update.');
+        } catch (\LogicException) {
+        }
+
+        try {
+            $this->mapper->batchUpdate(UserDto::class, [$dto], ['id'], 1);
+            self::fail('Expected batchUpdate to fail when required parameters exceed maxBindParameters.');
+        } catch (\LogicException) {
+        }
+
+        $this->expectException(\LogicException::class);
+        $this->mapper->batchUpdate(UserDto::class, [$dto], ['previousStatus']);
     }
 
     private function createUser(int $id, string $email): UserDto

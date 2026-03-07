@@ -25,8 +25,21 @@ final class CompilerAndDialectEdgeCasesTest extends TestCase
             'INSERT INTO users (id, email) VALUES (:id, :email)',
             SqlFragments::buildInsertSql('users', ['id' => ':id', 'email' => ':email']),
         );
+        self::assertSame(
+            'INSERT INTO users (id, email) VALUES (:id_0, :email_0), (:id_1, :email_1)',
+            SqlFragments::buildMultiRowInsertSql('users', ['id', 'email'], 2),
+        );
         self::assertNull(SqlFragments::compileWhere([]));
         self::assertSame('WHERE a = 1 AND b = 2', SqlFragments::compileWhere(['a = 1', 'b = 2']));
+
+        try {
+            SqlFragments::buildMultiRowInsertSql('users', [], 1);
+            self::fail('Expected multi-row insert helper to require at least one column.');
+        } catch (\LogicException) {
+        }
+
+        $this->expectException(\LogicException::class);
+        SqlFragments::buildMultiRowInsertSql('users', ['id'], 0);
     }
 
     public function testCompilersThrowForInvalidInput(): void
@@ -69,11 +82,13 @@ final class CompilerAndDialectEdgeCasesTest extends TestCase
         $mysql = new MysqlDialect();
         self::assertSame('SELECT 1', $mysql->applyLimitOffset('SELECT 1', null, null));
         self::assertSame('SELECT 1 LIMIT 10 OFFSET 5', $mysql->applyLimitOffset('SELECT 1', 10, 5));
+        self::assertSame(65535, $mysql->getMaxBindParameters());
         self::assertSame('', $mysql->compileUpsertClause(['id'], []));
         self::assertTrue(isset($mysql->getSupportedOperators()['LIKE']));
         self::assertFalse(isset($mysql->getSupportedOperators()['ILIKE']));
 
         $sqlite = new SqliteDialect();
+        self::assertSame(999, $sqlite->getMaxBindParameters());
         self::assertSame(
             ' ON CONFLICT (id) DO NOTHING',
             $sqlite->compileUpsertClause(['id'], []),
@@ -100,6 +115,7 @@ final class CompilerAndDialectEdgeCasesTest extends TestCase
 
         $generic = new GenericDialect('oci');
         self::assertSame('SELECT 1', $generic->applyLimitOffset('SELECT 1', 10, 10));
+        self::assertSame(65535, $generic->getMaxBindParameters());
         self::assertTrue(isset($generic->getSupportedOperators()['>=']));
         self::assertFalse(isset($generic->getSupportedOperators()['ILIKE']));
 

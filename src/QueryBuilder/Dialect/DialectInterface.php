@@ -8,6 +8,8 @@ interface DialectInterface
 {
     public function applyLimitOffset(string $sql, ?int $limit, ?int $offset): string;
 
+    public function getMaxBindParameters(): int;
+
     /**
      * @param list<string> $conflictColumns
      * @param list<string> $updateColumns

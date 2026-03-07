@@ -139,13 +139,16 @@ Nested mode creates savepoints for inner transactions.
 Main methods:
 
 - `insert(string|Mapping $target, object $dto): string|false`
+- `batchInsert(string|Mapping $target, array $dtos, ?int $maxBindParameters = null): void`
 - `update(string|Mapping $target, object $dto, array $where): int`
+- `batchUpdate(string|Mapping $target, array $dtos, array $identityProperties, ?int $maxBindParameters = null): void`
 - `delete(string|Mapping $target, array $where): int`
 - `findAll(string|Mapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null): array`
 - `iterateAll(string|Mapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null): iterable`
 - `findOne(string|Mapping $target, array $where = []): ?object`
 - `save(string|Mapping $target, object $dto, string ...$identityProperties): void`
 - `upsert(string|Mapping $target, object $dto, string ...$conflictProperties): int`
+- `batchUpsert(string|Mapping $target, array $dtos, array $conflictProperties, ?int $maxBindParameters = null): void`
 - `hydrate(...)`, `hydrateAll(...)`, `extract(...)`
 
 ### CRUD Example
@@ -176,6 +179,20 @@ $mapper->save('users', $dto, 'id');
 ```php
 $affected = $mapper->upsert('users', $dto, 'email');
 ```
+
+### Batch operations
+
+```php
+$mapper->batchInsert('users', [$dto1, $dto2, $dto3]);
+$mapper->batchUpsert('users', [$dto1, $dto2, $dto3], ['id']);
+$mapper->batchUpdate('users', [$dto1, $dto2, $dto3], ['id']);
+
+// Optional override for chunk sizing by bind parameter limit
+$mapper->batchInsert('users', [$dto1, $dto2, $dto3], 500);
+$mapper->batchUpsert('users', [$dto1, $dto2, $dto3], ['id'], 500);
+```
+
+`batchInsert` and `batchUpsert` automatically split large input into chunks based on DB parameter limits (for example, SQLite: 999 bind params), while executing all chunks inside one transaction.
 
 ### Advanced `where` in DataMapper
 
