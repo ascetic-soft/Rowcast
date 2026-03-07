@@ -30,16 +30,16 @@ $connection = Connection::create('mysql:host=localhost;dbname=app', 'root', 'sec
 $mapper = new DataMapper($connection);
 ```
 
-Опционально можно передать пользовательский конвертер имён и/или гидратор:
+Опционально можно передать пользовательский конвертер имён и/или конвертер типов:
 
 ```php
-use AsceticSoft\Rowcast\Mapping\NameConverter\NullConverter;
-use AsceticSoft\Rowcast\Hydration\ReflectionHydrator;
+use AsceticSoft\Rowcast\NameConverter\SnakeCaseToCamelCase;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 
 $mapper = new DataMapper(
     $connection,
-    nameConverter: new NullConverter(),
-    hydrator: new ReflectionHydrator(),
+    nameConverter: new SnakeCaseToCamelCase(),
+    typeConverter: TypeConverterRegistry::defaults(),
 );
 ```
 
@@ -61,16 +61,16 @@ $id = $mapper->insert('users', $user);
 {: .note }
 Неинициализированные свойства автоматически пропускаются. Это удобно для автоинкрементных первичных ключей — просто не устанавливайте `$id`, и он не будет включён в INSERT.
 
-### С ResultSetMapping
+### С Mapping (explicit-режим)
 
 ```php
-use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Mapping;
 
-$rsm = new ResultSetMapping(User::class, table: 'custom_users');
-$rsm->addField('usr_nm', 'name')
-    ->addField('usr_email', 'email');
+$mapping = Mapping::explicit(User::class, 'custom_users')
+    ->column('usr_nm', 'name')
+    ->column('usr_email', 'email');
 
-$mapper->insert($rsm, $user);
+$mapper->insert($mapping, $user);
 ```
 
 ---
@@ -197,21 +197,38 @@ $users = $mapper->iterateAll(
 
 ### Explicit-режим
 
-Передайте `ResultSetMapping` для полного контроля:
+Передайте `Mapping` для полного контроля:
 
 ```php
-$rsm = new ResultSetMapping(User::class, table: 'custom_users');
-$rsm->addField('usr_nm', 'name')
-    ->addField('usr_email', 'email')
-    ->addField('id', 'id');
+$mapping = Mapping::explicit(User::class, 'custom_users')
+    ->column('usr_nm', 'name')
+    ->column('usr_email', 'email')
+    ->column('id', 'id');
 
-$users = $mapper->findAll($rsm, ['id' => 1]);
-$mapper->insert($rsm, $user);
-$mapper->update($rsm, $user, ['id' => 1]);
-$mapper->delete($rsm, ['id' => 1]);
+$users = $mapper->findAll($mapping, ['id' => 1]);
+$mapper->insert($mapping, $user);
+$mapper->update($mapping, $user, ['id' => 1]);
+$mapper->delete($mapping, ['id' => 1]);
 ```
 
 Подробнее см. [Маппинг]({{ '/ru/mapping.html' | relative_url }}).
+
+---
+
+## Расширенные WHERE-условия
+
+`DataMapper` передаёт массив `where` в тот же движок условий QueryBuilder, поэтому доступны расширенные операторы:
+
+```php
+$users = $mapper->findAll(User::class, where: [
+    'deleted_at' => null,
+    '$or' => [
+        ['status' => ['active', 'pending']],
+        ['role' => 'admin'],
+    ],
+    'age >=' => 18,
+]);
+```
 
 ---
 

@@ -29,16 +29,16 @@ $connection = Connection::create('mysql:host=localhost;dbname=app', 'root', 'sec
 $mapper = new DataMapper($connection);
 ```
 
-You can optionally provide a custom name converter and/or hydrator:
+You can optionally provide a custom name converter and/or type converter:
 
 ```php
-use AsceticSoft\Rowcast\Mapping\NameConverter\NullConverter;
-use AsceticSoft\Rowcast\Hydration\ReflectionHydrator;
+use AsceticSoft\Rowcast\NameConverter\SnakeCaseToCamelCase;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 
 $mapper = new DataMapper(
     $connection,
-    nameConverter: new NullConverter(),
-    hydrator: new ReflectionHydrator(),
+    nameConverter: new SnakeCaseToCamelCase(),
+    typeConverter: TypeConverterRegistry::defaults(),
 );
 ```
 
@@ -60,16 +60,16 @@ $id = $mapper->insert('users', $user);
 {: .note }
 Uninitialized properties are automatically skipped. This is useful for auto-increment primary keys — just don't set `$id` and it won't be included in the INSERT.
 
-### With ResultSetMapping
+### With Mapping (explicit mode)
 
 ```php
-use AsceticSoft\Rowcast\Mapping\ResultSetMapping;
+use AsceticSoft\Rowcast\Mapping;
 
-$rsm = new ResultSetMapping(User::class, table: 'custom_users');
-$rsm->addField('usr_nm', 'name')
-    ->addField('usr_email', 'email');
+$mapping = Mapping::explicit(User::class, 'custom_users')
+    ->column('usr_nm', 'name')
+    ->column('usr_email', 'email');
 
-$mapper->insert($rsm, $user);
+$mapper->insert($mapping, $user);
 ```
 
 ---
@@ -196,21 +196,40 @@ Pass a table name (for writes) or a `class-string` (for reads). Mapping is deriv
 
 ### Explicit mode
 
-Pass a `ResultSetMapping` for full control:
+Pass a `Mapping` for full control:
 
 ```php
-$rsm = new ResultSetMapping(User::class, table: 'custom_users');
-$rsm->addField('usr_nm', 'name')
-    ->addField('usr_email', 'email')
-    ->addField('id', 'id');
+$mapping = Mapping::explicit(User::class, 'custom_users')
+    ->column('usr_nm', 'name')
+    ->column('usr_email', 'email')
+    ->column('id', 'id');
 
-$users = $mapper->findAll($rsm, ['id' => 1]);
-$mapper->insert($rsm, $user);
-$mapper->update($rsm, $user, ['id' => 1]);
-$mapper->delete($rsm, ['id' => 1]);
+$users = $mapper->findAll($mapping, ['id' => 1]);
+$mapper->insert($mapping, $user);
+$mapper->update($mapping, $user, ['id' => 1]);
+$mapper->delete($mapping, ['id' => 1]);
 ```
 
 See [Mapping]({{ '/docs/mapping.html' | relative_url }}) for full details.
+
+---
+
+## Advanced WHERE
+
+`DataMapper` forwards `where` arrays to QueryBuilder, so advanced operators are available:
+
+```php
+$users = $mapper->findAll(User::class, where: [
+    'deleted_at' => null,
+    '$or' => [
+        ['status' => ['active', 'pending']],
+        ['role' => 'admin'],
+    ],
+    'age >=' => 18,
+]);
+```
+
+You can also use these operators in `update()`, `delete()`, and `findOne()`.
 
 ---
 

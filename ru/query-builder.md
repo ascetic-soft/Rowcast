@@ -31,22 +31,78 @@ $qb = $connection->createQueryBuilder();
 ## SELECT
 
 ```php
-$qb = $connection->createQueryBuilder();
-
-$rows = $qb->select('u.id', 'u.name', 'p.title')
+$rows = $connection->createQueryBuilder()
+    ->select('u.id', 'u.email')
     ->from('users', 'u')
-    ->leftJoin('u', 'posts', 'p', 'p.user_id = u.id')
-    ->where('u.status = :status')
-    ->andWhere('u.created_at > :date')
-    ->groupBy('u.id')
-    ->having('COUNT(p.id) > :min')
-    ->orderBy('u.name', 'ASC')
-    ->addOrderBy('u.id', 'DESC')
+    ->where('u.is_active = :active')
+    ->orderBy('u.id', 'DESC')
     ->setMaxResults(10)
-    ->setFirstResult(0)
-    ->setParameter('status', 'active')
-    ->setParameter('date', '2025-01-01')
-    ->setParameter('min', 5)
+    ->setParameter('active', 1)
+    ->fetchAllAssociative();
+```
+
+### WHERE как массив
+
+Можно передавать ассоциативные массивы в `where()`, `andWhere()`, `orWhere()`:
+
+```php
+$rows = $connection->createQueryBuilder()
+    ->select('*')
+    ->from('users')
+    ->where(['email' => 'alice@example.com', 'is_active' => 1])
+    ->fetchAllAssociative();
+// SELECT * FROM users WHERE email = :w_email AND is_active = :w_is_active
+```
+
+Поддерживаемые операторы:
+
+```php
+->where(['deleted_at' => null])                    // IS NULL
+->where(['deleted_at !=' => null])                 // IS NOT NULL
+->where(['status' => ['active', 'pending']])       // IN
+->where(['status !=' => ['banned']])               // NOT IN
+->where(['age >=' => 18, 'score <' => 100])        // сравнения
+->where(['name LIKE' => 'A%'])                     // LIKE
+->where(['name ILIKE' => 'a%'])                    // ILIKE (PostgreSQL)
+->where(['name NOT LIKE' => '%bot%'])              // NOT LIKE
+->where(['age BETWEEN' => [18, 65]])               // BETWEEN
+```
+
+Примечания:
+
+- Пустой `IN` компилируется в `1 = 0`.
+- Пустой `NOT IN` компилируется в `1 = 1`.
+- `ILIKE` специфичен для PostgreSQL.
+
+### OR-условия
+
+Два варианта:
+
+```php
+// Вариант с whereOr(...)
+$rows = $connection->createQueryBuilder()
+    ->select('*')
+    ->from('users')
+    ->whereOr(
+        ['status' => 'active', 'age >' => 18],
+        ['role' => 'admin'],
+    )
+    ->fetchAllAssociative();
+
+// Вариант с $or/$and
+$rows = $connection->createQueryBuilder()
+    ->select('*')
+    ->from('users')
+    ->where([
+        'age >' => 18,
+        '$or' => [
+            ['status' => 'active'],
+            ['$and' => [
+                ['role' => 'admin'],
+                ['verified' => true],
+            ]],
+        ],
+    ])
     ->fetchAllAssociative();
 ```
 
@@ -62,6 +118,8 @@ $rows = $qb->select('u.id', 'u.name', 'p.title')
 | `where($expression)` | Задать условие WHERE (заменяет предыдущее) |
 | `andWhere($expression)` | Добавить AND-условие к WHERE |
 | `orWhere($expression)` | Добавить OR-условие к WHERE |
+| `whereOr(...$groups)` | Заменить WHERE OR-группами |
+| `andWhereOr(...$groups)` | Добавить OR-группы через AND |
 | `groupBy(...$columns)` | Задать колонки GROUP BY |
 | `having($expression)` | Задать условие HAVING |
 | `orderBy($column, $direction)` | Задать ORDER BY (заменяет предыдущий) |
@@ -71,44 +129,29 @@ $rows = $qb->select('u.id', 'u.name', 'p.title')
 
 ---
 
-## INSERT
+## INSERT / UPDATE / DELETE
 
 ```php
-$qb = $connection->createQueryBuilder();
-
-$qb->insert('users')
+$connection->createQueryBuilder()
+    ->insert('users')
     ->values([
-        'name'  => ':name',
         'email' => ':email',
+        'is_active' => ':is_active',
     ])
-    ->setParameter('name', 'Alice')
     ->setParameter('email', 'alice@example.com')
+    ->setParameter('is_active', 1)
     ->executeStatement();
-```
 
----
-
-## UPDATE
-
-```php
-$qb = $connection->createQueryBuilder();
-
-$qb->update('users')
-    ->set('name', ':name')
+$connection->createQueryBuilder()
+    ->update('users')
+    ->set('is_active', ':is_active')
     ->where('id = :id')
-    ->setParameter('name', 'Alice Updated')
+    ->setParameter('is_active', 0)
     ->setParameter('id', 1)
     ->executeStatement();
-```
 
----
-
-## DELETE
-
-```php
-$qb = $connection->createQueryBuilder();
-
-$qb->delete('users')
+$connection->createQueryBuilder()
+    ->delete('users')
     ->where('id = :id')
     ->setParameter('id', 1)
     ->executeStatement();
@@ -138,7 +181,20 @@ $qb->where('status = ?')
 
 ```php
 $sql = $qb->getSQL();
-// например: "SELECT u.id, u.name FROM users u WHERE u.status = :status"
+// например: "SELECT u.id, u.email FROM users u WHERE u.is_active = :active"
+```
+
+---
+
+## UPSERT
+
+```php
+$sql = $connection->createQueryBuilder()
+    ->upsert('users')
+    ->values(['email' => ':email', 'name' => ':name'])
+    ->onConflict('email')
+    ->doUpdateSet(['name'])
+    ->getSQL();
 ```
 
 ---
