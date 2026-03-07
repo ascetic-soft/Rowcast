@@ -237,8 +237,8 @@ interface TypeCasterInterface
 | `having(string $expression)` | `self` |
 | `orderBy(string $column, string $direction = 'ASC')` | `self` |
 | `addOrderBy(string $column, string $direction = 'ASC')` | `self` |
-| `setMaxResults(?int $limit)` | `self` |
-| `setFirstResult(?int $offset)` | `self` |
+| `setLimit(int $limit)` | `self` |
+| `setOffset(int $offset)` | `self` |
 
 ### INSERT
 

@@ -35,7 +35,8 @@ $rows = $connection->createQueryBuilder()
     ->from('users', 'u')
     ->where('u.is_active = :active')
     ->orderBy('u.id', 'DESC')
-    ->setMaxResults(10)
+    ->setOffset(20)
+    ->setLimit(10)
     ->setParameter('active', 1)
     ->fetchAllAssociative();
 ```
@@ -129,8 +130,8 @@ $rows = $connection->createQueryBuilder()
 | `having($expression)` | Set the HAVING clause |
 | `orderBy($column, $direction)` | Set ORDER BY (replaces previous) |
 | `addOrderBy($column, $direction)` | Add an additional ORDER BY |
-| `setMaxResults($limit)` | Set the LIMIT |
-| `setFirstResult($offset)` | Set the OFFSET |
+| `setLimit($limit)` | Set the LIMIT |
+| `setOffset($offset)` | Set the OFFSET |
 
 ---
 
