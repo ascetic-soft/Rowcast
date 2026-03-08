@@ -7,6 +7,7 @@ namespace AsceticSoft\Rowcast\Tests\QueryBuilder;
 use AsceticSoft\Rowcast\Connection;
 use AsceticSoft\Rowcast\ConnectionInterface;
 use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 use AsceticSoft\Rowcast\Tests\Fixtures\UserStatus;
 use PHPUnit\Framework\TestCase;
 
@@ -278,6 +279,69 @@ final class V2QueryBuilderTest extends TestCase
             ['w_status' => 'active', 'w_status_1' => 'inactive'],
             $this->readQueryBuilderParameters($qb),
         );
+    }
+
+    public function testWhereBoolNormalizesToIntWhenTypeConverterIsSet(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), false, TypeConverterRegistry::defaults());
+
+        $qb = $connection->createQueryBuilder()
+            ->select('id')
+            ->from('users')
+            ->where(['is_active' => true, 'is_verified' => false]);
+
+        self::assertSame(
+            ['w_is_active' => 1, 'w_is_verified' => 0],
+            $this->readQueryBuilderParameters($qb),
+        );
+    }
+
+    public function testWhereDateTimeNormalizesToStringWhenTypeConverterIsSet(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), false, TypeConverterRegistry::defaults());
+        $createdAt = new \DateTimeImmutable('2026-01-01 10:00:00+03:00');
+
+        $qb = $connection->createQueryBuilder()
+            ->select('id')
+            ->from('users')
+            ->where(['created_at >=' => $createdAt]);
+
+        self::assertSame(
+            ['w_created_at' => '2026-01-01 07:00:00+00:00'],
+            $this->readQueryBuilderParameters($qb),
+        );
+    }
+
+    public function testSetParameterBoolNormalizedAtExecution(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), false, TypeConverterRegistry::defaults());
+        $connection->executeStatement('CREATE TABLE users (id INTEGER PRIMARY KEY, is_active INTEGER NOT NULL)');
+        $connection->executeStatement('INSERT INTO users (id, is_active) VALUES (1, 1), (2, 0)');
+
+        $result = $connection->createQueryBuilder()
+            ->select('id')
+            ->from('users')
+            ->where('is_active = :active')
+            ->setParameter('active', false)
+            ->fetchOne();
+
+        self::assertSame(2, $result);
+    }
+
+    public function testSetParameterDateTimeNormalizedAtExecution(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'), false, TypeConverterRegistry::defaults());
+        $connection->executeStatement('CREATE TABLE events (id INTEGER PRIMARY KEY, created_at TEXT NOT NULL)');
+        $connection->executeStatement("INSERT INTO events (id, created_at) VALUES (1, '2026-01-01 07:00:00+00:00')");
+
+        $result = $connection->createQueryBuilder()
+            ->select('id')
+            ->from('events')
+            ->where('created_at = :created_at')
+            ->setParameter('created_at', new \DateTimeImmutable('2026-01-01 10:00:00+03:00'))
+            ->fetchOne();
+
+        self::assertSame(1, $result);
     }
 
     public function testWhereInIntegrationWithSqlite(): void

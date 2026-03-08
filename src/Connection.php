@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace AsceticSoft\Rowcast;
 
 use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 
 /**
  * Thin wrapper around PDO providing convenience methods for query execution
@@ -13,6 +15,7 @@ use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
 final class Connection implements ConnectionInterface
 {
     private int $transactionNestingLevel = 0;
+    private readonly TypeConverterInterface $typeConverter;
 
     /**
      * @param bool $nestTransactions When true, nested beginTransaction()/commit()/rollBack()
@@ -21,9 +24,11 @@ final class Connection implements ConnectionInterface
     public function __construct(
         private readonly \PDO $pdo,
         private readonly bool $nestTransactions = false,
+        ?TypeConverterInterface $typeConverter = null,
     ) {
         // Ensure PDO throws exceptions on errors — required for safe operation
         $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        $this->typeConverter = $typeConverter ?? TypeConverterRegistry::defaults();
     }
 
     /**
@@ -38,6 +43,7 @@ final class Connection implements ConnectionInterface
         ?string $password = null,
         array $options = [],
         bool $nestTransactions = false,
+        ?TypeConverterInterface $typeConverter = null,
     ): self {
         $defaultOptions = [
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
@@ -46,7 +52,7 @@ final class Connection implements ConnectionInterface
 
         $pdo = new \PDO($dsn, $username, $password, array_replace($defaultOptions, $options));
 
-        return new self($pdo, $nestTransactions);
+        return new self($pdo, $nestTransactions, $typeConverter);
     }
 
     /**
@@ -54,7 +60,7 @@ final class Connection implements ConnectionInterface
      */
     public function createQueryBuilder(): QueryBuilder
     {
-        return new QueryBuilder($this);
+        return new QueryBuilder($this, $this->typeConverter);
     }
 
     /**

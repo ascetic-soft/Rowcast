@@ -12,7 +12,8 @@ use AsceticSoft\Rowcast\QueryBuilder\Compiler\UpsertCompiler;
 use AsceticSoft\Rowcast\QueryBuilder\Compiler\UpdateCompiler;
 use AsceticSoft\Rowcast\QueryBuilder\Dialect\DialectFactory;
 use AsceticSoft\Rowcast\QueryBuilder\Dialect\DialectInterface;
-use BackedEnum;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 
 /**
  * Doctrine DBAL-like query builder.
@@ -69,10 +70,13 @@ class QueryBuilder
     private array $parameters = [];
 
     private ?DialectInterface $dialect = null;
+    private readonly TypeConverterInterface $typeConverter;
 
     public function __construct(
         private readonly ConnectionInterface $connection,
+        ?TypeConverterInterface $typeConverter = null,
     ) {
+        $this->typeConverter = $typeConverter ?? TypeConverterRegistry::defaults();
     }
 
     /**
@@ -676,11 +680,15 @@ class QueryBuilder
 
     private function normalizeValue(mixed $value): mixed
     {
-        if ($value instanceof BackedEnum) {
-            return $value->value;
-        }
+        return $this->typeConverter->toDb($value);
+    }
 
-        return $value;
+    /**
+     * @return array<string|int, mixed>
+     */
+    private function normalizedParameters(): array
+    {
+        return array_map($this->normalizeValue(...), $this->parameters);
     }
 
     private function nextWhereParameterName(string $field): string
@@ -703,7 +711,7 @@ class QueryBuilder
      */
     public function executeQuery(): \PDOStatement
     {
-        return $this->connection->executeQuery($this->getSQL(), $this->parameters);
+        return $this->connection->executeQuery($this->getSQL(), $this->normalizedParameters());
     }
 
     /**
@@ -711,7 +719,7 @@ class QueryBuilder
      */
     public function executeStatement(): int
     {
-        return $this->connection->executeStatement($this->getSQL(), $this->parameters);
+        return $this->connection->executeStatement($this->getSQL(), $this->normalizedParameters());
     }
 
     /**
@@ -721,7 +729,7 @@ class QueryBuilder
      */
     public function fetchAllAssociative(): array
     {
-        return $this->connection->fetchAllAssociative($this->getSQL(), $this->parameters);
+        return $this->connection->fetchAllAssociative($this->getSQL(), $this->normalizedParameters());
     }
 
     /**
@@ -731,7 +739,7 @@ class QueryBuilder
      */
     public function fetchAssociative(): array|false
     {
-        return $this->connection->fetchAssociative($this->getSQL(), $this->parameters);
+        return $this->connection->fetchAssociative($this->getSQL(), $this->normalizedParameters());
     }
 
     /**
@@ -739,7 +747,7 @@ class QueryBuilder
      */
     public function fetchOne(): mixed
     {
-        return $this->connection->fetchOne($this->getSQL(), $this->parameters);
+        return $this->connection->fetchOne($this->getSQL(), $this->normalizedParameters());
     }
 
     /**
@@ -749,6 +757,6 @@ class QueryBuilder
      */
     public function toIterable(): iterable
     {
-        return $this->connection->toIterable($this->getSQL(), $this->parameters);
+        return $this->connection->toIterable($this->getSQL(), $this->normalizedParameters());
     }
 }
