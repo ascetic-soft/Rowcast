@@ -173,9 +173,9 @@ Built-in converters: `ScalarConverter`, `BoolConverter`, `DateTimeConverter`, `J
 |:-------|:--------|
 | `select(string ...$columns)` | `self` |
 | `from(string $table, ?string $alias = null)` | `self` |
-| `leftJoin(string $from, string $table, string $alias, string $condition)` | `self` |
-| `innerJoin(string $from, string $table, string $alias, string $condition)` | `self` |
-| `rightJoin(string $from, string $table, string $alias, string $condition)` | `self` |
+| `leftJoin(string $table, string $alias, string $condition)` | `self` |
+| `innerJoin(string $table, string $alias, string $condition)` | `self` |
+| `rightJoin(string $table, string $alias, string $condition)` | `self` |
 | `where(string\|array $expression)` | `self` |
 | `andWhere(string\|array $expression)` | `self` |
 | `orWhere(string\|array $expression)` | `self` |

@@ -113,9 +113,9 @@ $rows = $connection->createQueryBuilder()
 |:------|:---------|
 | `select(...$columns)` | Задать колонки для выборки |
 | `from($table, $alias)` | Задать таблицу и опциональный алиас |
-| `leftJoin($from, $table, $alias, $condition)` | Добавить LEFT JOIN |
-| `innerJoin($from, $table, $alias, $condition)` | Добавить INNER JOIN |
-| `rightJoin($from, $table, $alias, $condition)` | Добавить RIGHT JOIN |
+| `leftJoin($table, $alias, $condition)` | Добавить LEFT JOIN |
+| `innerJoin($table, $alias, $condition)` | Добавить INNER JOIN |
+| `rightJoin($table, $alias, $condition)` | Добавить RIGHT JOIN |
 | `where($expression)` | Задать условие WHERE (заменяет предыдущее) |
 | `andWhere($expression)` | Добавить AND-условие к WHERE |
 | `orWhere($expression)` | Добавить OR-условие к WHERE |

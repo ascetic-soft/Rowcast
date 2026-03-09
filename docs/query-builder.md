@@ -118,9 +118,9 @@ $rows = $connection->createQueryBuilder()
 |:-------|:------------|
 | `select(...$columns)` | Set columns to select |
 | `from($table, $alias)` | Set the table and optional alias |
-| `leftJoin($from, $table, $alias, $condition)` | Add a LEFT JOIN |
-| `innerJoin($from, $table, $alias, $condition)` | Add an INNER JOIN |
-| `rightJoin($from, $table, $alias, $condition)` | Add a RIGHT JOIN |
+| `leftJoin($table, $alias, $condition)` | Add a LEFT JOIN |
+| `innerJoin($table, $alias, $condition)` | Add an INNER JOIN |
+| `rightJoin($table, $alias, $condition)` | Add a RIGHT JOIN |
 | `where($expression)` | Set the WHERE clause (replaces previous) |
 | `andWhere($expression)` | Add an AND condition to WHERE |
 | `orWhere($expression)` | Add an OR condition to WHERE |
