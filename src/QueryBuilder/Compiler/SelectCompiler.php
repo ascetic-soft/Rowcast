@@ -11,7 +11,7 @@ final readonly class SelectCompiler implements SqlCompilerInterface
     /**
      * @param list<string>                                                           $select
      * @param array{0: string, 1: string}|null                                       $from
-     * @param list<array{0: string, 1: string, 2: string, 3: string, 4: string}>    $join
+     * @param list<array{0: string, 1: string, 2: string, 3: string}>                 $join
      * @param list<string>                                                           $where
      * @param list<string>                                                           $groupBy
      * @param list<string>                                                           $having
@@ -42,7 +42,7 @@ final readonly class SelectCompiler implements SqlCompilerInterface
         $parts[] = 'SELECT ' . ($this->select !== [] ? implode(', ', $this->select) : '*');
         $parts[] = 'FROM ' . $this->from[0] . ($this->from[1] !== $this->from[0] ? ' ' . $this->from[1] : '');
 
-        foreach ($this->join as [$type, $fromAlias, $joinTable, $joinAlias, $condition]) {
+        foreach ($this->join as [$type, $joinTable, $joinAlias, $condition]) {
             $parts[] = $type . ' JOIN ' . $joinTable . ' ' . $joinAlias . ' ON ' . $condition;
         }
 

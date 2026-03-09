@@ -28,7 +28,7 @@ final class QueryBuilderFluentExecutionTest extends TestCase
             ->select('u.id')
             ->addSelect('u.name')
             ->from('users', 'u')
-            ->innerJoin('u', 'profiles', 'p', 'p.user_id = u.id')
+            ->innerJoin('profiles', 'p', 'p.user_id = u.id')
             ->where('u.age >= :min_age')
             ->andWhere(['u.name LIKE' => 'A%'])
             ->groupBy('u.id')
@@ -56,9 +56,9 @@ final class QueryBuilderFluentExecutionTest extends TestCase
         $sql = $this->connection->createQueryBuilder()
             ->select('u.id')
             ->from('users', 'u')
-            ->join('u', 'profiles', 'p', 'p.user_id = u.id')
-            ->leftJoin('u', 'profiles', 'p2', 'p2.user_id = u.id')
-            ->rightJoin('u', 'profiles', 'p3', 'p3.user_id = u.id')
+            ->join('profiles', 'p', 'p.user_id = u.id')
+            ->leftJoin('profiles', 'p2', 'p2.user_id = u.id')
+            ->rightJoin('profiles', 'p3', 'p3.user_id = u.id')
             ->getSQL();
 
         self::assertSame(

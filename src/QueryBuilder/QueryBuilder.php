@@ -30,7 +30,7 @@ class QueryBuilder
     /** @var array{0: string, 1: string}|null [table, alias] */
     private ?array $from = null;
 
-    /** @var list<array{0: string, 1: string, 2: string, 3: string, 4: string}> [type, fromAlias, joinTable, joinAlias, condition] */
+    /** @var list<array{0: string, 1: string, 2: string, 3: string}> [type, joinTable, joinAlias, condition] */
     private array $join = [];
 
     /** @var list<string> */
@@ -119,29 +119,29 @@ class QueryBuilder
         return $this;
     }
 
-    public function join(string $fromAlias, string $joinTable, string $joinAlias, string $condition): self
+    public function join(string $joinTable, string $joinAlias, string $condition): self
     {
-        return $this->addJoin('INNER', $fromAlias, $joinTable, $joinAlias, $condition);
+        return $this->addJoin('INNER', $joinTable, $joinAlias, $condition);
     }
 
-    public function innerJoin(string $fromAlias, string $joinTable, string $joinAlias, string $condition): self
+    public function innerJoin(string $joinTable, string $joinAlias, string $condition): self
     {
-        return $this->addJoin('INNER', $fromAlias, $joinTable, $joinAlias, $condition);
+        return $this->addJoin('INNER', $joinTable, $joinAlias, $condition);
     }
 
-    public function leftJoin(string $fromAlias, string $joinTable, string $joinAlias, string $condition): self
+    public function leftJoin(string $joinTable, string $joinAlias, string $condition): self
     {
-        return $this->addJoin('LEFT', $fromAlias, $joinTable, $joinAlias, $condition);
+        return $this->addJoin('LEFT', $joinTable, $joinAlias, $condition);
     }
 
-    public function rightJoin(string $fromAlias, string $joinTable, string $joinAlias, string $condition): self
+    public function rightJoin(string $joinTable, string $joinAlias, string $condition): self
     {
-        return $this->addJoin('RIGHT', $fromAlias, $joinTable, $joinAlias, $condition);
+        return $this->addJoin('RIGHT', $joinTable, $joinAlias, $condition);
     }
 
-    private function addJoin(string $type, string $fromAlias, string $joinTable, string $joinAlias, string $condition): self
+    private function addJoin(string $type, string $joinTable, string $joinAlias, string $condition): self
     {
-        $this->join[] = [$type, $fromAlias, $joinTable, $joinAlias, $condition];
+        $this->join[] = [$type, $joinTable, $joinAlias, $condition];
 
         return $this;
     }
