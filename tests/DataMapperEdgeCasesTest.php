@@ -197,6 +197,36 @@ final class DataMapperEdgeCasesTest extends TestCase
         $this->mapper->batchUpdate(UserDto::class, [$dto], ['previousStatus']);
     }
 
+    public function testInsertDoesNotCallLastInsertId(): void
+    {
+        $pdo = new class('sqlite::memory:') extends \PDO {
+            public function lastInsertId(?string $name = null): string|false
+            {
+                throw new \RuntimeException('lastInsertId should not be called by DataMapper::insert().');
+            }
+        };
+
+        $connection = new Connection($pdo);
+        $connection->executeStatement(
+            'CREATE TABLE cards (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL
+            )',
+        );
+        $mapper = new DataMapper($connection);
+
+        $card = new class() {
+            public string $id;
+            public string $title;
+        };
+        $card->id = 'uuid-1';
+        $card->title = 'Card';
+
+        $mapper->insert('cards', $card);
+
+        self::assertSame('1', (string) $connection->fetchOne('SELECT COUNT(*) FROM cards WHERE id = ?', ['uuid-1']));
+    }
+
     private function createUser(int $id, string $email): UserDto
     {
         $user = new UserDto();

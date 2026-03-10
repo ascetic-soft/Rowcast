@@ -45,8 +45,8 @@ $user = new UserDto();
 $user->email = 'alice@example.com';
 $user->isActive = true;
 
-$id = $mapper->insert('users', $user);
-$found = $mapper->findOne(UserDto::class, ['id' => (int) $id]);
+$mapper->insert('users', $user);
+$found = $mapper->findOne(UserDto::class, ['email' => $user->email]);
 ```
 
 ## Core Concepts
@@ -138,7 +138,7 @@ Nested mode creates savepoints for inner transactions.
 
 Main methods:
 
-- `insert(string|Mapping $target, object $dto): string|false`
+- `insert(string|Mapping $target, object $dto): void`
 - `batchInsert(string|Mapping $target, array $dtos, ?int $maxBindParameters = null): void`
 - `update(string|Mapping $target, object $dto, array $where): int`
 - `batchUpdate(string|Mapping $target, array $dtos, array $identityProperties, ?int $maxBindParameters = null): void`
@@ -158,8 +158,8 @@ $dto = new UserDto();
 $dto->email = 'alice@example.com';
 $dto->isActive = true;
 
-$id = $mapper->insert('users', $dto);
-$one = $mapper->findOne(UserDto::class, ['id' => (int) $id]);
+$mapper->insert('users', $dto);
+$one = $mapper->findOne(UserDto::class, ['email' => $dto->email]);
 
 $one->isActive = false;
 $mapper->update('users', $one, ['id' => $one->id]);

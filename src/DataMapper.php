@@ -32,7 +32,7 @@ final readonly class DataMapper
         $this->queryHelper = new QueryHelper($typeConverter);
     }
 
-    public function insert(string|Mapping $target, object $dto): string|false
+    public function insert(string|Mapping $target, object $dto): void
     {
         [$table] = $this->targetResolver->resolveTarget($target, $dto);
         $data = $this->extract($target, $dto);
@@ -49,8 +49,6 @@ final readonly class DataMapper
             $qb->setParameter($column, $value);
         }
         $qb->executeStatement();
-
-        return $this->connection->lastInsertId();
     }
 
     /**
