@@ -199,7 +199,7 @@ final class DataMapperEdgeCasesTest extends TestCase
 
     public function testInsertDoesNotCallLastInsertId(): void
     {
-        $pdo = new class('sqlite::memory:') extends \PDO {
+        $pdo = new class ('sqlite::memory:') extends \PDO {
             public function lastInsertId(?string $name = null): string|false
             {
                 throw new \RuntimeException('lastInsertId should not be called by DataMapper::insert().');
@@ -215,7 +215,7 @@ final class DataMapperEdgeCasesTest extends TestCase
         );
         $mapper = new DataMapper($connection);
 
-        $card = new class() {
+        $card = new class () {
             public string $id;
             public string $title;
         };
