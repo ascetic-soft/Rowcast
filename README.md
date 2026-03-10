@@ -537,6 +537,7 @@ AsceticSoft\Rowcast\
 
 ```bash
 composer install
+make install-hooks
 vendor/bin/phpunit
 vendor/bin/phpstan analyse
 ```
