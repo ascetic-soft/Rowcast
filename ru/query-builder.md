@@ -145,7 +145,7 @@ $connection->createQueryBuilder()
 
 $connection->createQueryBuilder()
     ->update('users')
-    ->set('is_active', ':is_active')
+    ->values(['is_active' => ':is_active'])
     ->where('id = :id')
     ->setParameter('is_active', 0)
     ->setParameter('id', 1)

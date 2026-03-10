@@ -203,6 +203,7 @@ Built-in converters: `ScalarConverter`, `BoolConverter`, `DateTimeConverter`, `J
 | Method | Returns |
 |:-------|:--------|
 | `update(string $table)` | `self` |
+| `values(array $values)` | `self` |
 | `set(string $column, string $value)` | `self` |
 
 ### DELETE

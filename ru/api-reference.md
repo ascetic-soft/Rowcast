@@ -204,6 +204,7 @@ interface TypeConverterInterface
 | Метод | Возвращает |
 |:------|:-----------|
 | `update(string $table)` | `self` |
+| `values(array $values)` | `self` |
 | `set(string $column, string $value)` | `self` |
 
 ### DELETE
