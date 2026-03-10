@@ -289,13 +289,27 @@ class QueryBuilder
      */
     public function values(array $values): self
     {
-        $this->insertValues = [];
+        if ($this->type === QueryType::Insert || $this->type === QueryType::Upsert) {
+            $this->insertValues = [];
 
-        foreach ($values as $column => $value) {
-            $this->setValue($column, $value);
+            foreach ($values as $column => $value) {
+                $this->setValue($column, $value);
+            }
+
+            return $this;
         }
 
-        return $this;
+        if ($this->type === QueryType::Update) {
+            $this->updateSet = [];
+
+            foreach ($values as $column => $value) {
+                $this->set($column, $value);
+            }
+
+            return $this;
+        }
+
+        throw new \LogicException('values() is available only for insert(), upsert(), or update() queries.');
     }
 
     public function setValue(string $column, mixed $value): self
@@ -351,20 +365,6 @@ class QueryBuilder
         $paramName = 'v_' . $column;
         $this->updateSet[$column] = ':' . $paramName;
         $this->parameters[$paramName] = $value;
-
-        return $this;
-    }
-
-    /**
-     * @param array<string, mixed> $values column => placeholder or direct value
-     */
-    public function setValues(array $values): self
-    {
-        $this->updateSet = [];
-
-        foreach ($values as $column => $value) {
-            $this->set($column, $value);
-        }
 
         return $this;
     }

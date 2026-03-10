@@ -81,12 +81,12 @@ final class QueryBuilderFluentExecutionTest extends TestCase
 
         self::assertSame(
             'UPDATE users u SET name = :name',
-            $this->connection->createQueryBuilder()->update('users', 'u')->setValues(['name' => ':name'])->getSQL(),
+            $this->connection->createQueryBuilder()->update('users', 'u')->values(['name' => ':name'])->getSQL(),
         );
 
         $updated = $this->connection->createQueryBuilder()
             ->update('users')
-            ->setValues(['name' => ':name'])
+            ->values(['name' => ':name'])
             ->set('age', 42)
             ->where(['id' => 3])
             ->setParameter('name', 'Charles')
