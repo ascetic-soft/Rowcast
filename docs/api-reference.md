@@ -74,7 +74,7 @@ public function __construct(
 
 | Method | Returns |
 |:-------|:--------|
-| `insert(string\|Mapping $target, object $dto)` | `string\|false` |
+| `insert(string\|Mapping $target, object $dto)` | `void` |
 | `batchInsert(string\|Mapping $target, array $dtos, ?int $maxBindParameters = null)` | `void` |
 | `update(string\|Mapping $target, object $dto, array $where)` | `int` |
 | `batchUpdate(string\|Mapping $target, array $dtos, array $identityProperties, ?int $maxBindParameters = null)` | `void` |

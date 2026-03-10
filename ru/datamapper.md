@@ -47,15 +47,14 @@ $mapper = new DataMapper(
 
 ## insert
 
-Вставляет DTO в базу данных. Возвращает последний вставленный ID.
+Вставляет DTO в базу данных.
 
 ```php
 $user = new User();
 $user->name = 'Alice';
 $user->email = 'alice@example.com';
 
-$id = $mapper->insert('users', $user);
-// $id = "1"
+$mapper->insert('users', $user);
 ```
 
 {: .note }

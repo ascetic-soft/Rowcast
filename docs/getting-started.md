@@ -72,10 +72,10 @@ $mapper = new DataMapper($connection);
 $user = new User();
 $user->name = 'Alice';
 $user->email = 'alice@example.com';
-$id = $mapper->insert('users', $user);
+$mapper->insert('users', $user);
 
 // Find
-$user = $mapper->findOne(User::class, ['id' => 1]);
+$user = $mapper->findOne(User::class, ['email' => 'alice@example.com']);
 
 // Update
 $user->name = 'Alice Updated';
