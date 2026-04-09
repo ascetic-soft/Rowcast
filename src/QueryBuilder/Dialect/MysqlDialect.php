@@ -6,6 +6,11 @@ namespace AsceticSoft\Rowcast\QueryBuilder\Dialect;
 
 final class MysqlDialect extends AbstractStandardDialect
 {
+    public function supportsUpsert(): bool
+    {
+        return true;
+    }
+
     public function compileUpsertClause(array $conflictColumns, array $updateColumns): string
     {
         if ($updateColumns === []) {

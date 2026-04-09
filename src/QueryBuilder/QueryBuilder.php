@@ -22,6 +22,9 @@ use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
  */
 class QueryBuilder
 {
+    public const string PARAM_PREFIX_WHERE = 'w_';
+    public const string PARAM_PREFIX_SET = 'v_';
+
     private ?QueryType $type = null;
 
     /** @var list<string> */
@@ -362,7 +365,7 @@ class QueryBuilder
             return $this;
         }
 
-        $paramName = 'v_' . $column;
+        $paramName = self::PARAM_PREFIX_SET . $column;
         $this->updateSet[$column] = ':' . $paramName;
         $this->parameters[$paramName] = $value;
 
@@ -694,7 +697,7 @@ class QueryBuilder
     private function nextWhereParameterName(string $field): string
     {
         $sanitized = preg_replace('/[^A-Za-z0-9_]/', '_', $field);
-        $base = 'w_' . ($sanitized !== '' ? $sanitized : 'p');
+        $base = self::PARAM_PREFIX_WHERE . ($sanitized !== '' ? $sanitized : 'p');
         $name = $base;
         $i = 1;
 

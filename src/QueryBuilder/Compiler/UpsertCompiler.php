@@ -28,6 +28,10 @@ final readonly class UpsertCompiler implements SqlCompilerInterface
             throw new \LogicException('UPSERT requires table and values.');
         }
 
+        if (!$this->dialect->supportsUpsert()) {
+            throw new \LogicException('UPSERT is not supported by the current database driver.');
+        }
+
         $sql = SqlFragments::buildInsertSql($this->table, $this->values);
 
         return $sql . $this->dialect->compileUpsertClause($this->conflictColumns, $this->updateColumns);

@@ -23,13 +23,17 @@ final readonly class DataMapper
         private ConnectionInterface $connection,
         ?NameConverterInterface $nameConverter = null,
         ?TypeConverterInterface $typeConverter = null,
+        ?Hydrator $hydrator = null,
+        ?Extractor $extractor = null,
+        ?TargetResolver $targetResolver = null,
+        ?QueryHelper $queryHelper = null,
     ) {
         $nameConverter ??= new SnakeCaseToCamelCase();
         $typeConverter ??= TypeConverterRegistry::defaults();
-        $this->hydrator = new Hydrator($typeConverter, $nameConverter);
-        $this->extractor = new Extractor($nameConverter, $typeConverter);
-        $this->targetResolver = new TargetResolver($nameConverter);
-        $this->queryHelper = new QueryHelper($typeConverter);
+        $this->hydrator = $hydrator ?? new Hydrator($typeConverter, $nameConverter);
+        $this->extractor = $extractor ?? new Extractor($nameConverter, $typeConverter);
+        $this->targetResolver = $targetResolver ?? new TargetResolver($nameConverter);
+        $this->queryHelper = $queryHelper ?? new QueryHelper();
     }
 
     public function insert(string|Mapping $target, object $dto): void
@@ -85,7 +89,7 @@ final readonly class DataMapper
         $qb->update($table);
 
         foreach ($data as $column => $value) {
-            $paramName = 'v_' . $column;
+            $paramName = QueryBuilder::PARAM_PREFIX_SET . $column;
             $qb->set($column, ':' . $paramName);
             $qb->setParameter($paramName, $value);
         }
@@ -232,14 +236,7 @@ final readonly class DataMapper
             throw new \LogicException('Cannot upsert: no data extracted from the DTO.');
         }
 
-        $conflictColumns = [];
-        foreach ($conflictProperties as $propertyName) {
-            $columnName = $this->targetResolver->resolveColumnName($propertyName, $mapping);
-            if (!\array_key_exists($columnName, $data)) {
-                throw new \LogicException(\sprintf('Conflict property "%s" is not extracted.', $propertyName));
-            }
-            $conflictColumns[] = $columnName;
-        }
+        $conflictColumns = $this->resolveColumns($conflictProperties, $data, $mapping, 'upsert', 'Conflict');
 
         $updateColumns = array_values(array_filter(
             array_keys($data),
@@ -277,18 +274,14 @@ final readonly class DataMapper
             return;
         }
 
-        [$table, $rows, $mapping] = $this->extractAll($target, $dtos, 'upsert', includeMapping: true);
+        [$table, $rows, $mapping] = $this->extractAll($target, $dtos, 'upsert');
         $dialect = DialectFactory::fromDriverName($this->connection->getDriverName());
+        if (!$dialect->supportsUpsert()) {
+            throw new \LogicException('Cannot batch upsert: UPSERT is not supported by the current database driver.');
+        }
         $effectiveMaxBindParameters = $maxBindParameters ?? $dialect->getMaxBindParameters();
 
-        $conflictColumns = [];
-        foreach ($conflictProperties as $propertyName) {
-            $columnName = $this->targetResolver->resolveColumnName($propertyName, $mapping);
-            if (!\array_key_exists($columnName, $rows[0])) {
-                throw new \LogicException(\sprintf('Conflict property "%s" is not extracted.', $propertyName));
-            }
-            $conflictColumns[] = $columnName;
-        }
+        $conflictColumns = $this->resolveColumns($conflictProperties, $rows[0], $mapping, 'upsert', 'Conflict');
 
         $updateColumns = array_values(array_filter(
             array_keys($rows[0]),
@@ -317,21 +310,14 @@ final readonly class DataMapper
             return;
         }
 
-        [$table, $rows, $mapping] = $this->extractAll($target, $dtos, 'update', includeMapping: true);
+        [$table, $rows, $mapping] = $this->extractAll($target, $dtos, 'update');
         $dialect = DialectFactory::fromDriverName($this->connection->getDriverName());
         $effectiveMaxBindParameters = $maxBindParameters ?? $dialect->getMaxBindParameters();
         if ($effectiveMaxBindParameters < 1) {
             throw new \LogicException('maxBindParameters must be greater than zero.');
         }
 
-        $identityColumns = [];
-        foreach ($identityProperties as $propertyName) {
-            $columnName = $this->targetResolver->resolveColumnName($propertyName, $mapping);
-            if (!\array_key_exists($columnName, $rows[0])) {
-                throw new \LogicException(\sprintf('Identity property "%s" is not extracted.', $propertyName));
-            }
-            $identityColumns[] = $columnName;
-        }
+        $identityColumns = $this->resolveColumns($identityProperties, $rows[0], $mapping, 'update', 'Identity');
 
         $updateColumns = array_values(array_filter(
             array_keys($rows[0]),
@@ -351,11 +337,11 @@ final readonly class DataMapper
         }
 
         $setParts = array_map(
-            static fn (string $column): string => $column . ' = :v_' . $column,
+            static fn (string $column): string => $column . ' = :' . QueryBuilder::PARAM_PREFIX_SET . $column,
             $updateColumns,
         );
         $whereParts = array_map(
-            static fn (string $column): string => $column . ' = :w_' . $column,
+            static fn (string $column): string => $column . ' = :' . QueryBuilder::PARAM_PREFIX_WHERE . $column,
             $identityColumns,
         );
         $sql = 'UPDATE ' . $table
@@ -368,7 +354,7 @@ final readonly class DataMapper
                 $params = [];
 
                 foreach ($updateColumns as $column) {
-                    $params['v_' . $column] = $row[$column];
+                    $params[QueryBuilder::PARAM_PREFIX_SET . $column] = $row[$column];
                 }
 
                 foreach ($identityColumns as $column) {
@@ -379,7 +365,7 @@ final readonly class DataMapper
                             $index,
                         ));
                     }
-                    $params['w_' . $column] = $row[$column];
+                    $params[QueryBuilder::PARAM_PREFIX_WHERE . $column] = $row[$column];
                 }
 
                 $statement->execute($params);
@@ -393,6 +379,30 @@ final readonly class DataMapper
     }
 
     /**
+     * @param array<string> $propertyNames
+     * @param array<string, mixed> $firstRow
+     * @return list<string>
+     */
+    private function resolveColumns(
+        array $propertyNames,
+        array $firstRow,
+        ?Mapping $mapping,
+        string $operation,
+        string $label,
+    ): array {
+        $columns = [];
+        foreach ($propertyNames as $propertyName) {
+            $columnName = $this->targetResolver->resolveColumnName($propertyName, $mapping);
+            if (!\array_key_exists($columnName, $firstRow)) {
+                throw new \LogicException(\sprintf('%s property "%s" is not extracted.', $label, $propertyName));
+            }
+            $columns[] = $columnName;
+        }
+
+        return $columns;
+    }
+
+    /**
      * @param list<object> $dtos
      * @return array{0: string, 1: list<array<string, mixed>>, 2: Mapping|null}
      */
@@ -400,7 +410,6 @@ final readonly class DataMapper
         string|Mapping $target,
         array $dtos,
         string $operation,
-        bool $includeMapping = false,
     ): array {
         if ($dtos === []) {
             throw new \LogicException('Internal error: extractAll() received empty DTO list.');
@@ -432,10 +441,6 @@ final readonly class DataMapper
             }
 
             $rows[] = $data;
-        }
-
-        if ($includeMapping) {
-            return [$table, $rows, $mapping];
         }
 
         return [$table, $rows, $mapping];

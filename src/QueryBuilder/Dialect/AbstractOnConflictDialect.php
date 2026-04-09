@@ -6,6 +6,11 @@ namespace AsceticSoft\Rowcast\QueryBuilder\Dialect;
 
 abstract class AbstractOnConflictDialect extends AbstractStandardDialect
 {
+    public function supportsUpsert(): bool
+    {
+        return true;
+    }
+
     public function compileUpsertClause(array $conflictColumns, array $updateColumns): string
     {
         if ($conflictColumns === []) {

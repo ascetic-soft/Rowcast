@@ -10,6 +10,8 @@ interface DialectInterface
 
     public function getMaxBindParameters(): int;
 
+    public function supportsUpsert(): bool;
+
     /**
      * @param list<string> $conflictColumns
      * @param list<string> $updateColumns
