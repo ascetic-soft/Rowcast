@@ -103,6 +103,19 @@ final class DataMapperReadOperationsTest extends TestCase
         self::assertNull($found);
     }
 
+    public function testFindOneReturnsMatchingHydratedRow(): void
+    {
+        $user = $this->createUser(30, 'match@example.com');
+        $this->mapper->insert(UserDto::class, $user);
+
+        /** @var UserDto|null $found */
+        $found = $this->mapper->findOne(UserDto::class, ['email' => 'match@example.com']);
+
+        self::assertInstanceOf(UserDto::class, $found);
+        self::assertSame(30, $found->id);
+        self::assertSame('match@example.com', $found->email);
+    }
+
     public function testMappingTargetWorksWithHydrateExtractAndFindAll(): void
     {
         $mapping = Mapping::auto(CardDto::class, 'cards')->column('keyword_meta', 'publishData');

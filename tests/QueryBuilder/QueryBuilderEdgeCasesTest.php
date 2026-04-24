@@ -138,4 +138,33 @@ final class QueryBuilderEdgeCasesTest extends TestCase
             ->where(['' => 'value'])
             ->getSQL();
     }
+
+    public function testValuesThrowsWhenUsedForUnsupportedQueryType(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('values() is available only for insert(), upsert(), or update() queries.');
+        $connection->createQueryBuilder()
+            ->select('*')
+            ->from('users')
+            ->values(['id' => 1]);
+    }
+
+    public function testSetParameterNamesRemainUniqueWhenFieldContainsSpecialCharacters(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+
+        $sql = $connection->createQueryBuilder()
+            ->select('*')
+            ->from('users')
+            ->where(['payload->name' => 'Alice'])
+            ->andWhere(['payload->name' => 'Bob'])
+            ->getSQL();
+
+        self::assertSame(
+            'SELECT * FROM users WHERE payload->name = :w_payload__name AND payload->name = :w_payload__name_1',
+            $sql,
+        );
+    }
 }

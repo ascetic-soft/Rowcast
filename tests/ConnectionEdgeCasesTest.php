@@ -88,6 +88,25 @@ final class ConnectionEdgeCasesTest extends TestCase
         self::assertSame('1', (string) $connection->fetchOne('SELECT COUNT(*) FROM items'));
     }
 
+    public function testTransactionalRollsBackAndRethrowsOnFailure(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+        $connection->executeStatement('CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+
+        try {
+            $connection->transactional(function (Connection $conn): void {
+                $conn->executeStatement('INSERT INTO items (id, name) VALUES (1, "A")');
+
+                throw new \RuntimeException('boom');
+            });
+            self::fail('Expected transactional() to rethrow callback exception.');
+        } catch (\RuntimeException $e) {
+            self::assertSame('boom', $e->getMessage());
+        }
+
+        self::assertSame('0', (string) $connection->fetchOne('SELECT COUNT(*) FROM items'));
+    }
+
     public function testNestedRollbackAtLevelOneUsesRootRollback(): void
     {
         $connection = new Connection(new \PDO('sqlite::memory:'), true);

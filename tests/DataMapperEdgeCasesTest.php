@@ -31,6 +31,14 @@ final class DataMapperEdgeCasesTest extends TestCase
                 previous_status TEXT NULL
             )',
         );
+        $this->connection->executeStatement(
+            'CREATE TABLE cards (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                keyword_meta TEXT NULL
+            )',
+        );
+        $this->connection->executeStatement('CREATE TABLE upsert_keys (id TEXT PRIMARY KEY)');
     }
 
     public function testInsertAndUpdateThrowWhenNoDataExtracted(): void
@@ -57,6 +65,22 @@ final class DataMapperEdgeCasesTest extends TestCase
 
         $this->expectException(\LogicException::class);
         $this->mapper->upsert($mapping, $dto, 'id');
+    }
+
+    public function testUpsertSupportsDoNothingWhenAllColumnsAreConflictColumns(): void
+    {
+        $record = new class () {
+            public string $id;
+        };
+        $record->id = 'dup-key';
+
+        $mapping = Mapping::explicit($record::class, 'upsert_keys')
+            ->column('id', 'id');
+
+        $this->mapper->insert('upsert_keys', $record);
+        self::assertSame(0, $this->mapper->upsert($mapping, $record, 'id'));
+
+        self::assertSame(1, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM upsert_keys WHERE id = ?', ['dup-key']));
     }
 
     public function testUpdateAndDeleteValidateWhere(): void
@@ -225,6 +249,30 @@ final class DataMapperEdgeCasesTest extends TestCase
         $mapper->insert('cards', $card);
 
         self::assertSame('1', (string) $connection->fetchOne('SELECT COUNT(*) FROM cards WHERE id = ?', ['uuid-1']));
+    }
+
+    public function testBatchInsertThrowsWhenExtractedColumnsMismatchAcrossDtos(): void
+    {
+        $complete = new class () {
+            public string $id;
+            public string $title;
+            public ?array $keywordMeta;
+        };
+        $complete->id = 'card-1';
+        $complete->title = 'First';
+        $complete->keywordMeta = ['score' => 1];
+
+        $missingOptional = new class () {
+            public string $id;
+            public string $title;
+            public ?array $keywordMeta;
+        };
+        $missingOptional->id = 'card-2';
+        $missingOptional->title = 'Second';
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Cannot batch insert: extracted columns mismatch at DTO index 1.');
+        $this->mapper->batchInsert('cards', [$complete, $missingOptional]);
     }
 
     private function createUser(int $id, string $email): UserDto
