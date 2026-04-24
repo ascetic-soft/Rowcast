@@ -70,10 +70,7 @@ final class Connection implements ConnectionInterface
      */
     public function executeQuery(string $sql, array $params = []): \PDOStatement
     {
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($params);
-
-        return $stmt;
+        return $this->prepareAndExecute($sql, $params);
     }
 
     /**
@@ -83,10 +80,20 @@ final class Connection implements ConnectionInterface
      */
     public function executeStatement(string $sql, array $params = []): int
     {
+        $stmt = $this->prepareAndExecute($sql, $params);
+
+        return $stmt->rowCount();
+    }
+
+    /**
+     * @param array<string|int, mixed> $params
+     */
+    private function prepareAndExecute(string $sql, array $params = []): \PDOStatement
+    {
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
 
-        return $stmt->rowCount();
+        return $stmt;
     }
 
     /**

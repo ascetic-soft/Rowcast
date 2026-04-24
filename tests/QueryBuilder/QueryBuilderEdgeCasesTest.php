@@ -110,7 +110,7 @@ final class QueryBuilderEdgeCasesTest extends TestCase
             ->andWhere(['$and' => [['id' => 1]]])
             ->getSQL();
 
-        self::assertSame('SELECT * FROM users WHERE  AND id = :w_id', $sql);
+        self::assertSame('SELECT * FROM users WHERE id = :w_id', $sql);
     }
 
     public function testWhereAndGroupCanBeEmpty(): void
@@ -123,7 +123,7 @@ final class QueryBuilderEdgeCasesTest extends TestCase
             ->where(['$and' => []])
             ->getSQL();
 
-        self::assertSame('SELECT * FROM users WHERE ', $sql);
+        self::assertSame('SELECT * FROM users', $sql);
     }
 
     public function testWhereKeyMustContainFieldName(): void

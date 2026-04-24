@@ -12,6 +12,7 @@ final readonly class Hydrator
     public function __construct(
         private TypeConverterInterface $typeConverter,
         private NameConverterInterface $nameConverter,
+        private ?PropertyMapResolver $propertyMapResolver = null,
     ) {
     }
 
@@ -24,7 +25,9 @@ final readonly class Hydrator
         $reflectionClass = new \ReflectionClass($className);
         $object = $reflectionClass->newInstanceWithoutConstructor();
 
-        foreach (Mapping::resolvePropertiesFor($mapping, $reflectionClass, $this->nameConverter) as $columnName => $propertyName) {
+        $propertyMapResolver = $this->propertyMapResolver ?? new PropertyMapResolver();
+
+        foreach ($propertyMapResolver->resolve($mapping, $reflectionClass, $this->nameConverter) as $columnName => $propertyName) {
             if (!\array_key_exists($columnName, $row)) {
                 continue;
             }

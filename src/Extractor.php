@@ -12,6 +12,7 @@ final readonly class Extractor
     public function __construct(
         private NameConverterInterface $nameConverter,
         private TypeConverterInterface $typeConverter,
+        private ?PropertyMapResolver $propertyMapResolver = null,
     ) {
     }
 
@@ -22,8 +23,9 @@ final readonly class Extractor
     {
         $reflectionClass = new \ReflectionClass($dto);
         $result = [];
+        $propertyMapResolver = $this->propertyMapResolver ?? new PropertyMapResolver();
 
-        foreach (Mapping::resolvePropertiesFor($mapping, $reflectionClass, $this->nameConverter) as $columnName => $propertyName) {
+        foreach ($propertyMapResolver->resolve($mapping, $reflectionClass, $this->nameConverter) as $columnName => $propertyName) {
             $property = $reflectionClass->getProperty($propertyName);
             if (!$property->isInitialized($dto)) {
                 continue;

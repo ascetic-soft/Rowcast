@@ -74,6 +74,7 @@ class QueryBuilder
 
     private ?DialectInterface $dialect = null;
     private readonly TypeConverterInterface $typeConverter;
+    private ?WhereCompiler $whereCompiler = null;
 
     public function __construct(
         private readonly ConnectionInterface $connection,
@@ -175,7 +176,7 @@ class QueryBuilder
      */
     public function orWhere(string|array $predicate): self
     {
-        $compiled = $this->compileWherePredicate($predicate);
+        $compiled = $this->getWhereCompiler()->compilePredicate($predicate);
         if ($compiled === null) {
             return $this;
         }
@@ -196,7 +197,7 @@ class QueryBuilder
     public function whereOr(array ...$groups): self
     {
         $this->where = [];
-        $compiled = $this->compileOrGroup($groups);
+        $compiled = $this->getWhereCompiler()->compileOrGroup($groups);
         if ($compiled !== null) {
             $this->where[] = $compiled;
         }
@@ -209,7 +210,7 @@ class QueryBuilder
      */
     public function andWhereOr(array ...$groups): self
     {
-        $compiled = $this->compileOrGroup($groups);
+        $compiled = $this->getWhereCompiler()->compileOrGroup($groups);
         if ($compiled !== null) {
             $this->where[] = $compiled;
         }
@@ -460,225 +461,30 @@ class QueryBuilder
         return $this->dialect;
     }
 
+    private function getWhereCompiler(): WhereCompiler
+    {
+        $this->whereCompiler ??= new WhereCompiler(
+            $this->getDialect(),
+            function (string $field, mixed $value): string {
+                $parameter = $this->nextWhereParameterName($field);
+                $this->parameters[$parameter] = $this->normalizeValue($value);
+
+                return $parameter;
+            },
+        );
+
+        return $this->whereCompiler;
+    }
+
     /**
      * @param string|array<string, mixed> $predicate
      */
     private function addWherePredicate(string|array $predicate): void
     {
-        $compiled = $this->compileWherePredicate($predicate);
-        if ($compiled !== null) {
+        $compiled = $this->getWhereCompiler()->compilePredicate($predicate);
+        if ($compiled !== null && $compiled !== '') {
             $this->where[] = $compiled;
         }
-    }
-
-    /**
-     * @param string|array<int|string, mixed> $predicate
-     */
-    private function compileWherePredicate(string|array $predicate): ?string
-    {
-        if (\is_string($predicate)) {
-            return $predicate;
-        }
-
-        if ($predicate === []) {
-            return null;
-        }
-
-        $parts = [];
-        foreach ($predicate as $key => $value) {
-            $stringKey = (string) $key;
-            if ($stringKey === '$or') {
-                if (!\is_array($value)) {
-                    throw new \LogicException('WHERE "$or" expects array of groups.');
-                }
-
-                $compiled = $this->compileOrGroup($value);
-                if ($compiled !== null) {
-                    $parts[] = $compiled;
-                }
-                continue;
-            }
-
-            if ($stringKey === '$and') {
-                if (!\is_array($value)) {
-                    throw new \LogicException('WHERE "$and" expects array of groups.');
-                }
-
-                $compiled = $this->compileAndGroup($value);
-                if ($compiled !== null) {
-                    $parts[] = $compiled;
-                }
-                continue;
-            }
-
-            $parts[] = $this->compileWhereEntry($stringKey, $value);
-        }
-
-        return implode(' AND ', $parts);
-    }
-
-    /**
-     * @param array<int|string, mixed> $groups
-     */
-    private function compileOrGroup(array $groups): ?string
-    {
-        $compiledGroups = [];
-        foreach ($groups as $group) {
-            if (!\is_array($group)) {
-                throw new \LogicException('WHERE "$or" group must be an array.');
-            }
-
-            $compiled = $this->compileWherePredicate($group);
-            if ($compiled !== null && $compiled !== '') {
-                $compiledGroups[] = $compiled;
-            }
-        }
-
-        if ($compiledGroups === []) {
-            return null;
-        }
-
-        if (\count($compiledGroups) === 1) {
-            return $compiledGroups[0];
-        }
-
-        $wrapped = array_map([$this, 'wrapGroup'], $compiledGroups);
-
-        return '(' . implode(' OR ', $wrapped) . ')';
-    }
-
-    /**
-     * @param array<int|string, mixed> $groups
-     */
-    private function compileAndGroup(array $groups): ?string
-    {
-        $compiledGroups = [];
-        foreach ($groups as $group) {
-            if (!\is_array($group)) {
-                throw new \LogicException('WHERE "$and" group must be an array.');
-            }
-
-            $compiled = $this->compileWherePredicate($group);
-            if ($compiled !== null && $compiled !== '') {
-                $compiledGroups[] = $compiled;
-            }
-        }
-
-        if ($compiledGroups === []) {
-            return null;
-        }
-
-        if (\count($compiledGroups) === 1) {
-            return $compiledGroups[0];
-        }
-
-        $wrapped = array_map([$this, 'wrapGroup'], $compiledGroups);
-
-        return '(' . implode(' AND ', $wrapped) . ')';
-    }
-
-    private function wrapGroup(string $group): string
-    {
-        if (str_starts_with($group, '(') && str_ends_with($group, ')')) {
-            return $group;
-        }
-
-        return '(' . $group . ')';
-    }
-
-    private function compileWhereEntry(string $key, mixed $value): string
-    {
-        $parts = preg_split('/\s+/', trim($key)) ?: [];
-        if ($parts === []) {
-            throw new \LogicException('WHERE key cannot be empty.');
-        }
-
-        $field = (string) array_shift($parts);
-        if ($field === '') {
-            throw new \LogicException('WHERE key must contain a field name.');
-        }
-
-        $operator = strtoupper(implode(' ', $parts));
-        if ($operator === '') {
-            if ($value === null) {
-                return $field . ' IS NULL';
-            }
-
-            if (\is_array($value)) {
-                return $this->compileInClause($field, $value, 'IN');
-            }
-
-            $parameter = $this->nextWhereParameterName($field);
-            $this->parameters[$parameter] = $this->normalizeValue($value);
-
-            return $field . ' = :' . $parameter;
-        }
-
-        if ($operator === '!=' || $operator === '<>') {
-            if ($value === null) {
-                return $field . ' IS NOT NULL';
-            }
-
-            if (\is_array($value)) {
-                return $this->compileInClause($field, $value, 'NOT IN');
-            }
-
-            $parameter = $this->nextWhereParameterName($field);
-            $this->parameters[$parameter] = $this->normalizeValue($value);
-
-            return $field . ' ' . $operator . ' :' . $parameter;
-        }
-
-        if ($operator === 'IN' || $operator === 'NOT IN') {
-            if (!\is_array($value)) {
-                throw new \LogicException(\sprintf('WHERE "%s %s" expects array value.', $field, $operator));
-            }
-
-            return $this->compileInClause($field, $value, $operator);
-        }
-
-        if ($operator === 'BETWEEN') {
-            if (!\is_array($value) || \count($value) !== 2) {
-                throw new \LogicException(\sprintf('WHERE "%s BETWEEN" expects [from, to].', $field));
-            }
-
-            $bounds = array_values($value);
-            $fromParam = $this->nextWhereParameterName($field);
-            $this->parameters[$fromParam] = $this->normalizeValue($bounds[0]);
-            $toParam = $this->nextWhereParameterName($field);
-            $this->parameters[$toParam] = $this->normalizeValue($bounds[1]);
-
-            return $field . ' BETWEEN :' . $fromParam . ' AND :' . $toParam;
-        }
-
-        $supportedOperators = $this->getDialect()->getSupportedOperators();
-        if (isset($supportedOperators[$operator])) {
-            $parameter = $this->nextWhereParameterName($field);
-            $this->parameters[$parameter] = $this->normalizeValue($value);
-
-            return $field . ' ' . $operator . ' :' . $parameter;
-        }
-
-        throw new \LogicException(\sprintf('Unsupported WHERE operator "%s" for field "%s".', $operator, $field));
-    }
-
-    /**
-     * @param array<int|string, mixed> $values
-     */
-    private function compileInClause(string $field, array $values, string $keyword): string
-    {
-        if ($values === []) {
-            return $keyword === 'NOT IN' ? '1 = 1' : '1 = 0';
-        }
-
-        $placeholders = [];
-        foreach ($values as $value) {
-            $parameter = $this->nextWhereParameterName($field);
-            $this->parameters[$parameter] = $this->normalizeValue($value);
-            $placeholders[] = ':' . $parameter;
-        }
-
-        return $field . ' ' . $keyword . ' (' . implode(', ', $placeholders) . ')';
     }
 
     private function normalizeValue(mixed $value): mixed

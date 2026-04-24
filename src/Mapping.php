@@ -112,30 +112,6 @@ final class Mapping
         \ReflectionClass $reflectionClass,
         NameConverterInterface $nameConverter,
     ): array {
-        $result = [];
-        if ($mapping !== null && !$mapping->isAutoDiscover()) {
-            foreach ($mapping->getColumns() as $columnName => $propertyName) {
-                if ($mapping->isIgnored($propertyName) || !$reflectionClass->hasProperty($propertyName)) {
-                    continue;
-                }
-
-                $result[$columnName] = $propertyName;
-            }
-
-            return $result;
-        }
-
-        foreach ($reflectionClass->getProperties() as $property) {
-            $propertyName = $property->getName();
-            if ($mapping?->isIgnored($propertyName) === true) {
-                continue;
-            }
-
-            $columnName = $mapping?->getColumnForProperty($propertyName)
-                ?? $nameConverter->toColumnName($propertyName);
-            $result[$columnName] = $propertyName;
-        }
-
-        return $result;
+        return new PropertyMapResolver()->resolve($mapping, $reflectionClass, $nameConverter);
     }
 }

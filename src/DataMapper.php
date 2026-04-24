@@ -38,11 +38,7 @@ final readonly class DataMapper
 
     public function insert(string|Mapping $target, object $dto): void
     {
-        [$table] = $this->targetResolver->resolveTarget($target, $dto);
-        $data = $this->extract($target, $dto);
-        if ($data === []) {
-            throw new \LogicException('Cannot insert: no data extracted from the DTO.');
-        }
+        [$table, $data] = $this->prepareWrite($target, $dto, 'insert');
 
         $values = $this->queryHelper->createPlaceholders($data);
         $qb = $this->connection->createQueryBuilder()
@@ -65,8 +61,7 @@ final readonly class DataMapper
         }
 
         [$table, $rows] = $this->extractAll($target, $dtos, 'insert');
-        $dialect = DialectFactory::fromDriverName($this->connection->getDriverName());
-        $effectiveMaxBindParameters = $maxBindParameters ?? $dialect->getMaxBindParameters();
+        $effectiveMaxBindParameters = $this->resolveMaxBindParameters($maxBindParameters);
 
         $this->executeChunkedInsert($table, $rows, $effectiveMaxBindParameters);
     }
@@ -76,11 +71,7 @@ final readonly class DataMapper
      */
     public function update(string|Mapping $target, object $dto, array $where): int
     {
-        [$table] = $this->targetResolver->resolveTarget($target, $dto);
-        $data = $this->extract($target, $dto);
-        if ($data === []) {
-            throw new \LogicException('Cannot update: no data extracted from the DTO.');
-        }
+        [$table, $data] = $this->prepareWrite($target, $dto, 'update');
         if ($where === []) {
             throw new \LogicException('Cannot update: WHERE conditions are required.');
         }
@@ -204,9 +195,8 @@ final readonly class DataMapper
             throw new \LogicException('Cannot save: identity properties are required.');
         }
 
-        [$table, , $mapping] = $this->targetResolver->resolveTarget($target, $dto);
-        $data = $this->extractor->extract($dto, $mapping);
-        $where = $this->targetResolver->buildWhereFromIdentityProperties($identityProperties, $data, $mapping);
+        [$table, $data, $mapping] = $this->prepareResolvedWrite($target, $dto, allowEmptyData: true);
+        $where = $this->buildIdentityWhere($identityProperties, $data, $mapping);
 
         $qb = $this->connection->createQueryBuilder()
             ->select('1')
@@ -230,13 +220,9 @@ final readonly class DataMapper
             throw new \LogicException('Cannot upsert: conflict properties are required.');
         }
 
-        [$table, , $mapping] = $this->targetResolver->resolveTarget($target, $dto);
-        $data = $this->extractor->extract($dto, $mapping);
-        if ($data === []) {
-            throw new \LogicException('Cannot upsert: no data extracted from the DTO.');
-        }
+        [$table, $data, $mapping] = $this->prepareResolvedWrite($target, $dto, 'upsert');
 
-        $conflictColumns = $this->resolveColumns($conflictProperties, $data, $mapping, 'upsert', 'Conflict');
+        $conflictColumns = $this->resolveColumns($conflictProperties, $data, $mapping, 'Conflict');
 
         $updateColumns = array_values(array_filter(
             array_keys($data),
@@ -279,14 +265,10 @@ final readonly class DataMapper
         if (!$dialect->supportsUpsert()) {
             throw new \LogicException('Cannot batch upsert: UPSERT is not supported by the current database driver.');
         }
-        $effectiveMaxBindParameters = $maxBindParameters ?? $dialect->getMaxBindParameters();
+        $effectiveMaxBindParameters = $this->resolveMaxBindParameters($maxBindParameters, $dialect->getMaxBindParameters());
 
-        $conflictColumns = $this->resolveColumns($conflictProperties, $rows[0], $mapping, 'upsert', 'Conflict');
-
-        $updateColumns = array_values(array_filter(
-            array_keys($rows[0]),
-            static fn (string $column): bool => !\in_array($column, $conflictColumns, true),
-        ));
+        $conflictColumns = $this->resolveColumns($conflictProperties, $rows[0], $mapping, 'Conflict');
+        $updateColumns = $this->resolveNonKeyColumns(array_keys($rows[0]), $conflictColumns);
 
         $upsertClause = $dialect->compileUpsertClause($conflictColumns, $updateColumns);
         $this->executeChunkedInsert($table, $rows, $effectiveMaxBindParameters, $upsertClause);
@@ -311,30 +293,11 @@ final readonly class DataMapper
         }
 
         [$table, $rows, $mapping] = $this->extractAll($target, $dtos, 'update');
-        $dialect = DialectFactory::fromDriverName($this->connection->getDriverName());
-        $effectiveMaxBindParameters = $maxBindParameters ?? $dialect->getMaxBindParameters();
-        if ($effectiveMaxBindParameters < 1) {
-            throw new \LogicException('maxBindParameters must be greater than zero.');
-        }
+        $effectiveMaxBindParameters = $this->resolveMaxBindParameters($maxBindParameters);
 
-        $identityColumns = $this->resolveColumns($identityProperties, $rows[0], $mapping, 'update', 'Identity');
-
-        $updateColumns = array_values(array_filter(
-            array_keys($rows[0]),
-            static fn (string $column): bool => !\in_array($column, $identityColumns, true),
-        ));
-        if ($updateColumns === []) {
-            throw new \LogicException('Cannot batch update: no columns left to update after excluding identity properties.');
-        }
-
-        $requiredParameters = \count($updateColumns) + \count($identityColumns);
-        if ($requiredParameters > $effectiveMaxBindParameters) {
-            throw new \LogicException(\sprintf(
-                'Cannot batch update: statement requires %d parameters, but maxBindParameters is %d.',
-                $requiredParameters,
-                $effectiveMaxBindParameters,
-            ));
-        }
+        $identityColumns = $this->resolveColumns($identityProperties, $rows[0], $mapping, 'Identity');
+        $updateColumns = $this->resolveBatchUpdateColumns(array_keys($rows[0]), $identityColumns);
+        $this->assertBatchUpdateFitsBindLimit($updateColumns, $identityColumns, $effectiveMaxBindParameters);
 
         $setParts = array_map(
             static fn (string $column): string => $column . ' = :' . QueryBuilder::PARAM_PREFIX_SET . $column,
@@ -387,7 +350,6 @@ final readonly class DataMapper
         array $propertyNames,
         array $firstRow,
         ?Mapping $mapping,
-        string $operation,
         string $label,
     ): array {
         $columns = [];
@@ -400,6 +362,103 @@ final readonly class DataMapper
         }
 
         return $columns;
+    }
+
+    /**
+     * @return array{0: string, 1: array<string, mixed>}
+     */
+    private function prepareWrite(string|Mapping $target, object $dto, string $operation): array
+    {
+        [$table, $data] = $this->prepareResolvedWrite($target, $dto, $operation);
+
+        return [$table, $data];
+    }
+
+    /**
+     * @return array{0: string, 1: array<string, mixed>, 2: Mapping|null}
+     */
+    private function prepareResolvedWrite(
+        string|Mapping $target,
+        object $dto,
+        ?string $operation = null,
+        bool $allowEmptyData = false,
+    ): array {
+        [$table, , $mapping] = $this->targetResolver->resolveTarget($target, $dto);
+        $data = $this->extractor->extract($dto, $mapping);
+
+        if (!$allowEmptyData && $data === []) {
+            throw new \LogicException(\sprintf('Cannot %s: no data extracted from the DTO.', $operation));
+        }
+
+        return [$table, $data, $mapping];
+    }
+
+    /**
+     * @param array<int|string, string> $identityProperties
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function buildIdentityWhere(array $identityProperties, array $data, ?Mapping $mapping): array
+    {
+        return $this->targetResolver->buildWhereFromIdentityProperties($identityProperties, $data, $mapping);
+    }
+
+    private function resolveMaxBindParameters(?int $maxBindParameters, ?int $default = null): int
+    {
+        $effectiveMaxBindParameters = $maxBindParameters
+            ?? $default
+            ?? DialectFactory::fromDriverName($this->connection->getDriverName())->getMaxBindParameters();
+
+        if ($effectiveMaxBindParameters < 1) {
+            throw new \LogicException('maxBindParameters must be greater than zero.');
+        }
+
+        return $effectiveMaxBindParameters;
+    }
+
+    /**
+     * @param list<string> $allColumns
+     * @param list<string> $keyColumns
+     * @return list<string>
+     */
+    private function resolveNonKeyColumns(array $allColumns, array $keyColumns): array
+    {
+        return array_values(array_filter(
+            $allColumns,
+            static fn (string $column): bool => !\in_array($column, $keyColumns, true),
+        ));
+    }
+
+    /**
+     * @param list<string> $allColumns
+     * @param list<string> $identityColumns
+     * @return list<string>
+     */
+    private function resolveBatchUpdateColumns(array $allColumns, array $identityColumns): array
+    {
+        $updateColumns = $this->resolveNonKeyColumns($allColumns, $identityColumns);
+
+        if ($updateColumns === []) {
+            throw new \LogicException('Cannot batch update: no columns left to update after excluding identity properties.');
+        }
+
+        return $updateColumns;
+    }
+
+    /**
+     * @param list<string> $updateColumns
+     * @param list<string> $identityColumns
+     */
+    private function assertBatchUpdateFitsBindLimit(array $updateColumns, array $identityColumns, int $maxBindParameters): void
+    {
+        $requiredParameters = \count($updateColumns) + \count($identityColumns);
+        if ($requiredParameters > $maxBindParameters) {
+            throw new \LogicException(\sprintf(
+                'Cannot batch update: statement requires %d parameters, but maxBindParameters is %d.',
+                $requiredParameters,
+                $maxBindParameters,
+            ));
+        }
     }
 
     /**
