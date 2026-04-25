@@ -182,11 +182,7 @@ final class Connection implements ConnectionInterface
             return;
         }
 
-        if ($this->transactionNestingLevel === 0) {
-            $this->pdo->beginTransaction();
-        } else {
-            $this->pdo->exec('SAVEPOINT ROWCAST_' . $this->transactionNestingLevel);
-        }
+        $this->beginNestedTransaction();
 
         ++$this->transactionNestingLevel;
     }
@@ -204,15 +200,8 @@ final class Connection implements ConnectionInterface
             return;
         }
 
-        if ($this->transactionNestingLevel === 0) {
-            throw new \LogicException('No active transaction.');
-        }
-
-        if ($this->transactionNestingLevel === 1) {
-            $this->pdo->commit();
-        } else {
-            $this->pdo->exec('RELEASE SAVEPOINT ROWCAST_' . ($this->transactionNestingLevel - 1));
-        }
+        $this->assertNestedTransactionIsActive();
+        $this->commitNestedTransaction();
 
         --$this->transactionNestingLevel;
     }
@@ -230,15 +219,8 @@ final class Connection implements ConnectionInterface
             return;
         }
 
-        if ($this->transactionNestingLevel === 0) {
-            throw new \LogicException('No active transaction.');
-        }
-
-        if ($this->transactionNestingLevel === 1) {
-            $this->pdo->rollBack();
-        } else {
-            $this->pdo->exec('ROLLBACK TO SAVEPOINT ROWCAST_' . ($this->transactionNestingLevel - 1));
-        }
+        $this->assertNestedTransactionIsActive();
+        $this->rollBackNestedTransaction();
 
         --$this->transactionNestingLevel;
     }
@@ -296,24 +278,10 @@ final class Connection implements ConnectionInterface
      */
     public function toIterable(string $sql, array $params = []): iterable
     {
-        $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
         $restoreBuffered = false;
 
         try {
-            if ($driver === 'mysql') {
-                // @codeCoverageIgnoreStart
-                $this->pdo->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, false);
-                $restoreBuffered = true;
-                $stmt = $this->pdo->prepare($sql);
-                // @codeCoverageIgnoreEnd
-            } elseif ($driver === 'pgsql') {
-                // @codeCoverageIgnoreStart
-                $stmt = $this->pdo->prepare($sql, [\PDO::ATTR_CURSOR => \PDO::CURSOR_SCROLL]);
-                // @codeCoverageIgnoreEnd
-            } else {
-                $stmt = $this->pdo->prepare($sql);
-            }
-
+            $stmt = $this->prepareIterableStatement($sql, $restoreBuffered);
             $stmt->execute($params);
 
             try {
@@ -329,6 +297,73 @@ final class Connection implements ConnectionInterface
                 $this->pdo->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true);
             }
         }
+    }
+
+    private function beginNestedTransaction(): void
+    {
+        if ($this->transactionNestingLevel === 0) {
+            $this->pdo->beginTransaction();
+
+            return;
+        }
+
+        $this->pdo->exec('SAVEPOINT ' . $this->getSavepointName($this->transactionNestingLevel));
+    }
+
+    private function commitNestedTransaction(): void
+    {
+        if ($this->transactionNestingLevel === 1) {
+            $this->pdo->commit();
+
+            return;
+        }
+
+        $this->pdo->exec('RELEASE SAVEPOINT ' . $this->getSavepointName($this->transactionNestingLevel - 1));
+    }
+
+    private function rollBackNestedTransaction(): void
+    {
+        if ($this->transactionNestingLevel === 1) {
+            $this->pdo->rollBack();
+
+            return;
+        }
+
+        $this->pdo->exec('ROLLBACK TO SAVEPOINT ' . $this->getSavepointName($this->transactionNestingLevel - 1));
+    }
+
+    private function assertNestedTransactionIsActive(): void
+    {
+        if ($this->transactionNestingLevel === 0) {
+            throw new \LogicException('No active transaction.');
+        }
+    }
+
+    private function getSavepointName(int $level): string
+    {
+        return 'ROWCAST_' . $level;
+    }
+
+    private function prepareIterableStatement(string $sql, bool &$restoreBuffered): \PDOStatement
+    {
+        $driver = $this->getDriverName();
+
+        if ($driver === 'mysql') {
+            // @codeCoverageIgnoreStart
+            $this->pdo->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, false);
+            $restoreBuffered = true;
+
+            return $this->pdo->prepare($sql);
+            // @codeCoverageIgnoreEnd
+        }
+
+        if ($driver === 'pgsql') {
+            // @codeCoverageIgnoreStart
+            return $this->pdo->prepare($sql, [\PDO::ATTR_CURSOR => \PDO::CURSOR_SCROLL]);
+            // @codeCoverageIgnoreEnd
+        }
+
+        return $this->pdo->prepare($sql);
     }
 
     public function getDriverName(): string
