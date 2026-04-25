@@ -14,10 +14,6 @@ Rowcast maps database rows to DTOs and back using reflection, supports explicit/
 
 **Documentation:** [English](https://ascetic-soft.github.io/Rowcast/) | [Русский](https://ascetic-soft.github.io/Rowcast/ru/)
 
-Project planning notes:
-
-- [Improvements Plan](docs/improvements-plan.md)
-
 ## Requirements
 
 - PHP >= 8.4
@@ -28,29 +24,6 @@ Project planning notes:
 ```bash
 composer require ascetic-soft/rowcast
 ```
-
-## Local Benchmark
-
-Run the local benchmark harness:
-
-```bash
-make bench
-```
-
-More benchmark scenarios and interpretation notes are available in [BENCHMARKS.md](BENCHMARKS.md).
-
-Optional arguments can be passed directly to the script:
-
-```bash
-php benchmarks/rowcast.php 10000 10
-```
-
-Arguments:
-
-- first argument: row count, default `5000`
-- second argument: loop count, default `5`
-
-The benchmark is intended for local comparison of hot paths such as extract, hydrate, `findAll()`, `iterateAll()`, and batch write operations. It is not part of CI.
 
 ## Quick Start
 

@@ -1,4 +1,4 @@
-.PHONY: install install-hooks test cs-fix cs-check phpstan ci bench help
+.PHONY: install install-hooks test cs-fix cs-check phpstan ci help
 
 install:
 	composer install
@@ -22,9 +22,6 @@ phpstan:
 
 ci: cs-check phpstan test
 
-bench:
-	php benchmarks/rowcast.php
-
 help:
 	@echo "Available targets:"
 	@echo "  install   - composer install"
@@ -33,5 +30,4 @@ help:
 	@echo "  cs-fix   - fix code style (PHP CS Fixer)"
 	@echo "  cs-check - check code style without fixing"
 	@echo "  phpstan  - run PHPStan static analysis"
-	@echo "  bench    - run local benchmark harness"
 	@echo "  ci       - run all checks (cs-check, phpstan, test)"
