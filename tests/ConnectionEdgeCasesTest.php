@@ -26,6 +26,29 @@ final class ConnectionEdgeCasesTest extends TestCase
         self::assertFalse($connection->fetchAssociative('SELECT * FROM items WHERE id = :id', ['id' => 1]));
     }
 
+    public function testRepeatedFetchMethodsReusePreparedStatementsSafely(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+        $connection->executeStatement('CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+        $connection->executeStatement('INSERT INTO items (id, name) VALUES (:id, :name)', ['id' => 1, 'name' => 'A']);
+        $connection->executeStatement('INSERT INTO items (id, name) VALUES (:id, :name)', ['id' => 2, 'name' => 'B']);
+
+        self::assertSame('A', $connection->fetchOne('SELECT name FROM items WHERE id = :id', ['id' => 1]));
+        self::assertSame('B', $connection->fetchOne('SELECT name FROM items WHERE id = :id', ['id' => 2]));
+
+        self::assertSame(['id' => 1, 'name' => 'A'], $connection->fetchAssociative('SELECT * FROM items WHERE id = :id', ['id' => 1]));
+        self::assertSame(['id' => 2, 'name' => 'B'], $connection->fetchAssociative('SELECT * FROM items WHERE id = :id', ['id' => 2]));
+
+        self::assertSame(
+            [['name' => 'A'], ['name' => 'B']],
+            $connection->fetchAllAssociative('SELECT name FROM items WHERE id IN (:first, :second) ORDER BY id', ['first' => 1, 'second' => 2]),
+        );
+        self::assertSame(
+            [['name' => 'B']],
+            $connection->fetchAllAssociative('SELECT name FROM items WHERE id IN (:first, :second) ORDER BY id', ['first' => 2, 'second' => 3]),
+        );
+    }
+
     public function testToIterableAndLastInsertIdAndDriverName(): void
     {
         $connection = new Connection(new \PDO('sqlite::memory:'));

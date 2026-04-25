@@ -17,6 +17,9 @@ final class Connection implements ConnectionInterface
     private int $transactionNestingLevel = 0;
     private readonly TypeConverterInterface $typeConverter;
 
+    /** @var array<string, \PDOStatement> */
+    private array $statementCache = [];
+
     /**
      * @param bool $nestTransactions When true, nested beginTransaction()/commit()/rollBack()
      *                               calls use SQL SAVEPOINTs instead of failing.
@@ -70,7 +73,7 @@ final class Connection implements ConnectionInterface
      */
     public function executeQuery(string $sql, array $params = []): \PDOStatement
     {
-        return $this->prepareAndExecute($sql, $params);
+        return $this->prepareAndExecute($sql, $params, reuseStatement: false);
     }
 
     /**
@@ -80,7 +83,7 @@ final class Connection implements ConnectionInterface
      */
     public function executeStatement(string $sql, array $params = []): int
     {
-        $stmt = $this->prepareAndExecute($sql, $params);
+        $stmt = $this->prepareAndExecute($sql, $params, reuseStatement: true);
 
         return $stmt->rowCount();
     }
@@ -88,9 +91,11 @@ final class Connection implements ConnectionInterface
     /**
      * @param array<string|int, mixed> $params
      */
-    private function prepareAndExecute(string $sql, array $params = []): \PDOStatement
+    private function prepareAndExecute(string $sql, array $params = [], bool $reuseStatement = false): \PDOStatement
     {
-        $stmt = $this->pdo->prepare($sql);
+        $stmt = $reuseStatement
+            ? ($this->statementCache[$sql] ??= $this->pdo->prepare($sql))
+            : $this->pdo->prepare($sql);
         $stmt->execute($params);
 
         return $stmt;
@@ -104,9 +109,13 @@ final class Connection implements ConnectionInterface
      */
     public function fetchAllAssociative(string $sql, array $params = []): array
     {
-        $stmt = $this->executeQuery($sql, $params);
+        $stmt = $this->prepareAndExecute($sql, $params, reuseStatement: true);
 
-        return array_values($stmt->fetchAll(\PDO::FETCH_ASSOC));
+        try {
+            return array_values($stmt->fetchAll(\PDO::FETCH_ASSOC));
+        } finally {
+            $stmt->closeCursor();
+        }
     }
 
     /**
@@ -118,9 +127,13 @@ final class Connection implements ConnectionInterface
      */
     public function fetchAssociative(string $sql, array $params = []): array|false
     {
-        $stmt = $this->executeQuery($sql, $params);
+        $stmt = $this->prepareAndExecute($sql, $params, reuseStatement: true);
 
-        $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+        try {
+            $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+        } finally {
+            $stmt->closeCursor();
+        }
 
         if (\is_array($result)) {
             /** @var array<string, mixed> $result */
@@ -138,7 +151,13 @@ final class Connection implements ConnectionInterface
      */
     public function fetchOne(string $sql, array $params = []): mixed
     {
-        return $this->executeQuery($sql, $params)->fetchColumn();
+        $stmt = $this->prepareAndExecute($sql, $params, reuseStatement: true);
+
+        try {
+            return $stmt->fetchColumn();
+        } finally {
+            $stmt->closeCursor();
+        }
     }
 
     /**
