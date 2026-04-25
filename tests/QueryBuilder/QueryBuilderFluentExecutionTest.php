@@ -130,6 +130,22 @@ final class QueryBuilderFluentExecutionTest extends TestCase
         self::assertSame([['id' => 1]], array_values($stmt->fetchAll(\PDO::FETCH_ASSOC)));
     }
 
+    public function testSetParameterInvalidatesNormalizedParameterCache(): void
+    {
+        $qb = $this->connection->createQueryBuilder()
+            ->select('name')
+            ->from('users')
+            ->where('id = :id')
+            ->setParameter('id', 1)
+        ;
+
+        self::assertSame('Alice', $qb->fetchOne());
+
+        $qb->setParameter('id', 2);
+
+        self::assertSame('Bob', $qb->fetchOne());
+    }
+
     public function testUpsertCompilesAndExecutesForSqlite(): void
     {
         $this->connection->createQueryBuilder()

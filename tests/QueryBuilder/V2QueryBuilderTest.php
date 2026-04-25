@@ -281,6 +281,23 @@ final class V2QueryBuilderTest extends TestCase
         );
     }
 
+    public function testWhereChangeInvalidatesNormalizedParameterCache(): void
+    {
+        $connection = $this->createUsersConnection();
+
+        $qb = $connection->createQueryBuilder()
+            ->select('id')
+            ->from('users')
+            ->where(['email' => 'a@example.com'])
+        ;
+
+        self::assertSame(1, $qb->fetchOne());
+
+        $qb->where(['email' => 'b@example.com']);
+
+        self::assertSame(2, $qb->fetchOne());
+    }
+
     public function testWhereBoolNormalizesToIntWhenTypeConverterIsSet(): void
     {
         $connection = new Connection(new \PDO('sqlite::memory:'), false, TypeConverterRegistry::defaults());

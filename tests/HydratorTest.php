@@ -107,4 +107,51 @@ final class HydratorTest extends TestCase
 
         self::assertFalse(isset($second->publishData));
     }
+
+    public function testHydrateRepeatedlyPreservesTypedConversions(): void
+    {
+        $hydrator = new Hydrator(TypeConverterRegistry::defaults(), new SnakeCaseToCamelCase());
+        $row = [
+            'id' => '8',
+            'email' => 'repeat@example.com',
+            'is_active' => 0,
+            'tags' => '["z"]',
+            'created_at' => null,
+            'status' => 'inactive',
+            'previous_status' => 'active',
+        ];
+
+        $first = $hydrator->hydrate(UserDto::class, $row);
+        $second = $hydrator->hydrate(UserDto::class, $row);
+
+        self::assertSame(8, $first->id);
+        self::assertFalse($first->isActive);
+        self::assertNull($first->createdAt);
+        self::assertSame(UserStatus::Inactive, $first->status);
+        self::assertSame(UserStatus::Active, $first->previousStatus);
+
+        self::assertSame(8, $second->id);
+        self::assertFalse($second->isActive);
+        self::assertNull($second->createdAt);
+        self::assertSame(UserStatus::Inactive, $second->status);
+        self::assertSame(UserStatus::Active, $second->previousStatus);
+    }
+
+    public function testHydrateIterableHydratesRowsWithCachedMetadata(): void
+    {
+        $hydrator = new Hydrator(TypeConverterRegistry::defaults(), new SnakeCaseToCamelCase());
+        $mapping = Mapping::auto(CardDto::class, 'cards')
+            ->column('keyword_meta', 'publishData');
+
+        $rows = [
+            ['id' => '1', 'title' => 'First', 'keyword_meta' => '{"a":1}'],
+            ['id' => '2', 'title' => 'Second', 'keyword_meta' => '{"b":2}'],
+        ];
+
+        $result = iterator_to_array($hydrator->hydrateIterable(CardDto::class, $rows, $mapping));
+
+        self::assertCount(2, $result);
+        self::assertSame(['a' => 1], $result[0]->publishData);
+        self::assertSame(['b' => 2], $result[1]->publishData);
+    }
 }

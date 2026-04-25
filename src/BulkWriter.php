@@ -34,15 +34,23 @@ final readonly class BulkWriter
         }
 
         $chunkSize = max(1, intdiv($maxBindParameters, $columnCount));
+        $columnPrefixes = $this->buildColumnPrefixes($columns);
 
-        $this->connection->transactional(function () use ($table, $rows, $columns, $chunkSize, $suffix): void {
-            foreach (array_chunk($rows, $chunkSize) as $chunk) {
-                $sql = SqlFragments::buildMultiRowInsertSql($table, $columns, \count($chunk)) . $suffix;
+        $this->connection->transactional(function () use ($table, $rows, $columns, $columnPrefixes, $chunkSize, $suffix): void {
+            $rowCount = \count($rows);
+            $sqlByChunkSize = [];
 
+            for ($offset = 0; $offset < $rowCount; $offset += $chunkSize) {
+                $currentChunkSize = min($chunkSize, $rowCount - $offset);
+                $sql = $sqlByChunkSize[$currentChunkSize]
+                    ??= SqlFragments::buildMultiRowInsertSql($table, $columns, $currentChunkSize) . $suffix;
                 $params = [];
-                foreach ($chunk as $rowIndex => $row) {
-                    foreach ($columns as $column) {
-                        $params[$column . '_' . $rowIndex] = $row[$column];
+
+                for ($rowIndex = 0; $rowIndex < $currentChunkSize; ++$rowIndex) {
+                    $row = $rows[$offset + $rowIndex];
+
+                    foreach ($columns as $columnIndex => $column) {
+                        $params[$columnPrefixes[$columnIndex] . $rowIndex] = $row[$column];
                     }
                 }
 
@@ -77,16 +85,19 @@ final readonly class BulkWriter
             . ' SET ' . implode(', ', $setParts)
             . ' WHERE ' . implode(' AND ', $whereParts);
 
-        $this->connection->transactional(function () use ($rows, $updateColumns, $identityColumns, $sql): void {
+        $updateParameterMap = $this->buildParameterMap($updateColumns, QueryBuilder::PARAM_PREFIX_SET);
+        $identityParameterMap = $this->buildParameterMap($identityColumns, QueryBuilder::PARAM_PREFIX_WHERE);
+
+        $this->connection->transactional(function () use ($rows, $updateParameterMap, $identityParameterMap, $sql): void {
             $statement = $this->connection->getPdo()->prepare($sql);
             foreach ($rows as $index => $row) {
                 $params = [];
 
-                foreach ($updateColumns as $column) {
-                    $params[QueryBuilder::PARAM_PREFIX_SET . $column] = $row[$column];
+                foreach ($updateParameterMap as $column => $parameterName) {
+                    $params[$parameterName] = $row[$column];
                 }
 
-                foreach ($identityColumns as $column) {
+                foreach ($identityParameterMap as $column => $parameterName) {
                     if ($row[$column] === null) {
                         throw new \LogicException(\sprintf(
                             'Cannot batch update: identity column "%s" is null at row index %d.',
@@ -94,7 +105,7 @@ final readonly class BulkWriter
                             $index,
                         ));
                     }
-                    $params[QueryBuilder::PARAM_PREFIX_WHERE . $column] = $row[$column];
+                    $params[$parameterName] = $row[$column];
                 }
 
                 $statement->execute($params);
@@ -116,5 +127,35 @@ final readonly class BulkWriter
                 $maxBindParameters,
             ));
         }
+    }
+
+    /**
+     * @param list<string> $columns
+     * @return array<string, string>
+     */
+    private function buildParameterMap(array $columns, string $prefix): array
+    {
+        $parameterMap = [];
+
+        foreach ($columns as $column) {
+            $parameterMap[$column] = $prefix . $column;
+        }
+
+        return $parameterMap;
+    }
+
+    /**
+     * @param list<string> $columns
+     * @return list<string>
+     */
+    private function buildColumnPrefixes(array $columns): array
+    {
+        $prefixes = [];
+
+        foreach ($columns as $column) {
+            $prefixes[] = $column . '_';
+        }
+
+        return $prefixes;
     }
 }

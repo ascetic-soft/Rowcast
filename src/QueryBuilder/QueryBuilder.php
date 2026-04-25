@@ -72,6 +72,11 @@ class QueryBuilder
     /** @var array<string|int, mixed> */
     private array $parameters = [];
 
+    /** @var array<string|int, mixed>|null */
+    private ?array $normalizedParametersCache = null;
+
+    private bool $normalizedParametersDirty = true;
+
     private ?DialectInterface $dialect = null;
     private readonly TypeConverterInterface $typeConverter;
     private ?WhereCompiler $whereCompiler = null;
@@ -155,6 +160,7 @@ class QueryBuilder
      */
     public function where(string|array $predicate): self
     {
+        $this->clearWhereParameters();
         $this->where = [];
         $this->addWherePredicate($predicate);
 
@@ -196,6 +202,7 @@ class QueryBuilder
      */
     public function whereOr(array ...$groups): self
     {
+        $this->clearWhereParameters();
         $this->where = [];
         $compiled = $this->getWhereCompiler()->compileOrGroup($groups);
         if ($compiled !== null) {
@@ -326,6 +333,7 @@ class QueryBuilder
 
         $this->insertValues[$column] = ':' . $column;
         $this->parameters[$column] = $value;
+        $this->invalidateNormalizedParameters();
 
         return $this;
     }
@@ -369,6 +377,7 @@ class QueryBuilder
         $paramName = self::PARAM_PREFIX_SET . $column;
         $this->updateSet[$column] = ':' . $paramName;
         $this->parameters[$paramName] = $value;
+        $this->invalidateNormalizedParameters();
 
         return $this;
     }
@@ -388,6 +397,7 @@ class QueryBuilder
     public function setParameter(string|int $key, mixed $value): self
     {
         $this->parameters[$key] = $value;
+        $this->invalidateNormalizedParameters();
 
         return $this;
     }
@@ -398,6 +408,7 @@ class QueryBuilder
     public function setParameters(array $params): self
     {
         $this->parameters = $params;
+        $this->invalidateNormalizedParameters();
 
         return $this;
     }
@@ -468,6 +479,7 @@ class QueryBuilder
             function (string $field, mixed $value): string {
                 $parameter = $this->nextWhereParameterName($field);
                 $this->parameters[$parameter] = $this->normalizeValue($value);
+                $this->invalidateNormalizedParameters();
 
                 return $parameter;
             },
@@ -497,7 +509,31 @@ class QueryBuilder
      */
     private function normalizedParameters(): array
     {
-        return array_map($this->normalizeValue(...), $this->parameters);
+        if (!$this->normalizedParametersDirty && $this->normalizedParametersCache !== null) {
+            return $this->normalizedParametersCache;
+        }
+
+        $this->normalizedParametersCache = array_map($this->normalizeValue(...), $this->parameters);
+        $this->normalizedParametersDirty = false;
+
+        return $this->normalizedParametersCache;
+    }
+
+    private function invalidateNormalizedParameters(): void
+    {
+        $this->normalizedParametersDirty = true;
+        $this->normalizedParametersCache = null;
+    }
+
+    private function clearWhereParameters(): void
+    {
+        foreach (array_keys($this->parameters) as $key) {
+            if (is_string($key) && str_starts_with($key, self::PARAM_PREFIX_WHERE)) {
+                unset($this->parameters[$key]);
+            }
+        }
+
+        $this->invalidateNormalizedParameters();
     }
 
     private function nextWhereParameterName(string $field): string

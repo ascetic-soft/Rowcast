@@ -15,6 +15,9 @@ final class Hydrator
     /** @var array<class-string, array<string, \ReflectionProperty>> */
     private static array $reflectionProperties = [];
 
+    /** @var array<class-string, array<string, string|null>> */
+    private static array $propertyTypes = [];
+
     public function __construct(
         private TypeConverterInterface $typeConverter,
         private NameConverterInterface $nameConverter,
@@ -28,7 +31,7 @@ final class Hydrator
      */
     public function hydrate(string $className, array $row, ?Mapping $mapping = null): object
     {
-        [$reflectionClass, $propertyMap, $properties] = $this->prepareMetadata($className, $mapping);
+        [$reflectionClass, $propertyMap, $properties, $propertyTypes] = $this->prepareMetadata($className, $mapping);
         $object = $reflectionClass->newInstanceWithoutConstructor();
 
         foreach ($propertyMap as $columnName => $propertyName) {
@@ -36,7 +39,7 @@ final class Hydrator
                 continue;
             }
 
-            $this->setProperty($object, $properties[$propertyName], $row[$columnName]);
+            $this->setProperty($object, $properties[$propertyName], $propertyTypes[$propertyName], $row[$columnName]);
         }
 
         return $object;
@@ -49,7 +52,7 @@ final class Hydrator
      */
     public function hydrateAll(string $className, array $rows, ?Mapping $mapping = null): array
     {
-        [$reflectionClass, $propertyMap, $properties] = $this->prepareMetadata($className, $mapping);
+        [$reflectionClass, $propertyMap, $properties, $propertyTypes] = $this->prepareMetadata($className, $mapping);
         $result = [];
 
         foreach ($rows as $row) {
@@ -60,7 +63,7 @@ final class Hydrator
                     continue;
                 }
 
-                $this->setProperty($object, $properties[$propertyName], $row[$columnName]);
+                $this->setProperty($object, $properties[$propertyName], $propertyTypes[$propertyName], $row[$columnName]);
             }
 
             $result[] = $object;
@@ -71,7 +74,31 @@ final class Hydrator
 
     /**
      * @param class-string $className
-     * @return array{0: \ReflectionClass<object>, 1: array<string, string>, 2: array<string, \ReflectionProperty>}
+     * @param iterable<int, array<string, mixed>> $rows
+     * @return iterable<int, object>
+     */
+    public function hydrateIterable(string $className, iterable $rows, ?Mapping $mapping = null): iterable
+    {
+        [$reflectionClass, $propertyMap, $properties, $propertyTypes] = $this->prepareMetadata($className, $mapping);
+
+        foreach ($rows as $row) {
+            $object = $reflectionClass->newInstanceWithoutConstructor();
+
+            foreach ($propertyMap as $columnName => $propertyName) {
+                if (!\array_key_exists($columnName, $row)) {
+                    continue;
+                }
+
+                $this->setProperty($object, $properties[$propertyName], $propertyTypes[$propertyName], $row[$columnName]);
+            }
+
+            yield $object;
+        }
+    }
+
+    /**
+     * @param class-string $className
+     * @return array{0: \ReflectionClass<object>, 1: array<string, string>, 2: array<string, \ReflectionProperty>, 3: array<string, string|null>}
      */
     private function prepareMetadata(string $className, ?Mapping $mapping): array
     {
@@ -79,8 +106,9 @@ final class Hydrator
         $propertyMapResolver = $this->propertyMapResolver ?? new PropertyMapResolver();
         $propertyMap = $propertyMapResolver->resolve($mapping, $reflectionClass, $this->nameConverter);
         $properties = self::$reflectionProperties[$className] ??= $this->buildPropertyCache($reflectionClass);
+        $propertyTypes = self::$propertyTypes[$className] ??= $this->buildPropertyTypeCache($properties);
 
-        return [$reflectionClass, $propertyMap, $properties];
+        return [$reflectionClass, $propertyMap, $properties, $propertyTypes];
     }
 
     /**
@@ -98,9 +126,23 @@ final class Hydrator
         return $properties;
     }
 
-    private function setProperty(object $object, \ReflectionProperty $property, mixed $value): void
+    /**
+     * @param array<string, \ReflectionProperty> $properties
+     * @return array<string, string|null>
+     */
+    private function buildPropertyTypeCache(array $properties): array
     {
-        $typeName = $this->resolveTypeName($property);
+        $propertyTypes = [];
+
+        foreach ($properties as $propertyName => $property) {
+            $propertyTypes[$propertyName] = $this->resolveTypeName($property);
+        }
+
+        return $propertyTypes;
+    }
+
+    private function setProperty(object $object, \ReflectionProperty $property, ?string $typeName, mixed $value): void
+    {
         if ($typeName !== null) {
             $value = $this->typeConverter->toPhp($value, $typeName);
         }

@@ -139,9 +139,7 @@ final readonly class DataMapper
     ): iterable {
         [$qb, $className, $mapping] = $this->buildSelectQuery($target, $where, $orderBy, $limit, $offset);
 
-        foreach ($qb->toIterable() as $row) {
-            yield $this->hydrator->hydrate($className, $row, $mapping);
-        }
+        return $this->hydrator->hydrateIterable($className, $qb->toIterable(), $mapping);
     }
 
     /**
