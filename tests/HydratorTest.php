@@ -82,4 +82,29 @@ final class HydratorTest extends TestCase
         self::assertSame(['k' => 'v'], $dto->payload);
         self::assertSame('7', $dto->unionValue);
     }
+
+    public function testHydrateUsesUpdatedMappingConfigurationAcrossRepeatedCalls(): void
+    {
+        $hydrator = new Hydrator(TypeConverterRegistry::defaults(), new SnakeCaseToCamelCase());
+        $mapping = Mapping::auto(CardDto::class, 'cards')
+            ->column('keyword_meta', 'publishData');
+
+        $first = $hydrator->hydrate(CardDto::class, [
+            'id' => '1',
+            'title' => 'Title',
+            'keyword_meta' => '{"a":1}',
+        ], $mapping);
+
+        self::assertSame(['a' => 1], $first->publishData);
+
+        $mapping->ignore('publishData');
+
+        $second = $hydrator->hydrate(CardDto::class, [
+            'id' => '2',
+            'title' => 'Title 2',
+            'keyword_meta' => '{"b":2}',
+        ], $mapping);
+
+        self::assertFalse(isset($second->publishData));
+    }
 }

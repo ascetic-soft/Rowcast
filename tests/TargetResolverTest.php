@@ -56,4 +56,12 @@ final class TargetResolverTest extends TestCase
         $this->expectException(\LogicException::class);
         $resolver->buildWhereFromIdentityProperties(['id'], ['email' => 'x@y.z'], null);
     }
+
+    public function testResolveTargetReturnsSameDerivedTableAcrossRepeatedCalls(): void
+    {
+        $resolver = new TargetResolver(new SnakeCaseToCamelCase());
+
+        self::assertSame(['user_dtos', UserDto::class, null], $resolver->resolveTarget(UserDto::class));
+        self::assertSame(['user_dtos', UserDto::class, null], $resolver->resolveTarget(UserDto::class));
+    }
 }

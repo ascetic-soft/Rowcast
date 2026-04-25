@@ -63,4 +63,19 @@ final class MappingTest extends TestCase
         self::assertArrayHasKey('publish_data', $resolved);
         self::assertSame('publishData', $resolved['publish_data']);
     }
+
+    public function testMappingIsConfiguredInPlace(): void
+    {
+        $mapping = Mapping::auto(CardDto::class, 'cards');
+
+        $sameInstance = $mapping->column('keyword_meta', 'publishData');
+
+        self::assertSame($mapping, $sameInstance);
+        self::assertSame('keyword_meta', $mapping->getColumnForProperty('publishData'));
+
+        $sameInstance = $mapping->ignore('title');
+
+        self::assertSame($mapping, $sameInstance);
+        self::assertTrue($mapping->isIgnored('title'));
+    }
 }

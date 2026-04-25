@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AsceticSoft\Rowcast\Tests\TypeConverter;
 
 use AsceticSoft\Rowcast\Tests\Fixtures\UserStatus;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface;
 use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 use PHPUnit\Framework\TestCase;
 
@@ -49,5 +50,55 @@ final class TypeConverterRegistryTest extends TestCase
 
         $unknown = new \stdClass();
         self::assertSame($unknown, $registry->toDb($unknown));
+    }
+
+    public function testAddInvalidatesLookupCachesForToPhpAndSupports(): void
+    {
+        $registry = new TypeConverterRegistry();
+
+        self::assertFalse($registry->supports(CustomValue::class));
+
+        $registry->add(new CustomValueConverter());
+
+        self::assertTrue($registry->supports(CustomValue::class));
+        self::assertEquals(new CustomValue('restored'), $registry->toPhp('restored', CustomValue::class));
+    }
+
+    public function testAddInvalidatesLookupCachesForToDb(): void
+    {
+        $registry = new TypeConverterRegistry();
+        $value = new CustomValue('persisted');
+
+        self::assertSame($value, $registry->toDb($value));
+
+        $registry->add(new CustomValueConverter());
+
+        self::assertSame('persisted', $registry->toDb($value));
+    }
+}
+
+final readonly class CustomValue
+{
+    public function __construct(
+        public string $value,
+    ) {
+    }
+}
+
+final class CustomValueConverter implements TypeConverterInterface
+{
+    public function supports(string $phpType): bool
+    {
+        return $phpType === CustomValue::class;
+    }
+
+    public function toPhp(mixed $value, string $phpType): mixed
+    {
+        return new CustomValue((string) $value);
+    }
+
+    public function toDb(mixed $value): mixed
+    {
+        return $value->value;
     }
 }

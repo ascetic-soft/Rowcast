@@ -6,7 +6,6 @@ namespace AsceticSoft\Rowcast;
 
 use AsceticSoft\Rowcast\NameConverter\NameConverterInterface;
 use AsceticSoft\Rowcast\NameConverter\SnakeCaseToCamelCase;
-use AsceticSoft\Rowcast\QueryBuilder\Compiler\SqlFragments;
 use AsceticSoft\Rowcast\QueryBuilder\Dialect\DialectFactory;
 use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
 use AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface;
@@ -18,6 +17,7 @@ final readonly class DataMapper
     private Extractor $extractor;
     private TargetResolver $targetResolver;
     private QueryHelper $queryHelper;
+    private BulkWriter $bulkWriter;
 
     public function __construct(
         private ConnectionInterface $connection,
@@ -34,6 +34,7 @@ final readonly class DataMapper
         $this->extractor = $extractor ?? new Extractor($nameConverter, $typeConverter);
         $this->targetResolver = $targetResolver ?? new TargetResolver($nameConverter);
         $this->queryHelper = $queryHelper ?? new QueryHelper();
+        $this->bulkWriter = new BulkWriter($this->connection);
     }
 
     public function insert(string|Mapping $target, object $dto): void
@@ -63,7 +64,7 @@ final readonly class DataMapper
         [$table, $rows] = $this->extractAll($target, $dtos, 'insert');
         $effectiveMaxBindParameters = $this->resolveMaxBindParameters($maxBindParameters);
 
-        $this->executeChunkedInsert($table, $rows, $effectiveMaxBindParameters);
+        $this->bulkWriter->executeChunkedInsert($table, $rows, $effectiveMaxBindParameters);
     }
 
     /**
@@ -198,6 +199,10 @@ final readonly class DataMapper
         [$table, $data, $mapping] = $this->prepareResolvedWrite($target, $dto, allowEmptyData: true);
         $where = $this->buildIdentityWhere($identityProperties, $data, $mapping);
 
+        // save() is a convenience flow that works without requiring a database
+        // conflict constraint. It intentionally checks for existence first and
+        // then chooses insert or update. Prefer upsert() when the database
+        // supports native conflict handling and write-path round-trips matter.
         $qb = $this->connection->createQueryBuilder()
             ->select('1')
             ->from($table)
@@ -271,7 +276,7 @@ final readonly class DataMapper
         $updateColumns = $this->resolveNonKeyColumns(array_keys($rows[0]), $conflictColumns);
 
         $upsertClause = $dialect->compileUpsertClause($conflictColumns, $updateColumns);
-        $this->executeChunkedInsert($table, $rows, $effectiveMaxBindParameters, $upsertClause);
+        $this->bulkWriter->executeChunkedInsert($table, $rows, $effectiveMaxBindParameters, $upsertClause);
     }
 
     /**
@@ -297,43 +302,13 @@ final readonly class DataMapper
 
         $identityColumns = $this->resolveColumns($identityProperties, $rows[0], $mapping, 'Identity');
         $updateColumns = $this->resolveBatchUpdateColumns(array_keys($rows[0]), $identityColumns);
-        $this->assertBatchUpdateFitsBindLimit($updateColumns, $identityColumns, $effectiveMaxBindParameters);
-
-        $setParts = array_map(
-            static fn (string $column): string => $column . ' = :' . QueryBuilder::PARAM_PREFIX_SET . $column,
+        $this->bulkWriter->executeBatchUpdate(
+            $table,
+            $rows,
             $updateColumns,
-        );
-        $whereParts = array_map(
-            static fn (string $column): string => $column . ' = :' . QueryBuilder::PARAM_PREFIX_WHERE . $column,
             $identityColumns,
+            $effectiveMaxBindParameters,
         );
-        $sql = 'UPDATE ' . $table
-            . ' SET ' . implode(', ', $setParts)
-            . ' WHERE ' . implode(' AND ', $whereParts);
-
-        $this->connection->transactional(function () use ($rows, $updateColumns, $identityColumns, $sql): void {
-            $statement = $this->connection->getPdo()->prepare($sql);
-            foreach ($rows as $index => $row) {
-                $params = [];
-
-                foreach ($updateColumns as $column) {
-                    $params[QueryBuilder::PARAM_PREFIX_SET . $column] = $row[$column];
-                }
-
-                foreach ($identityColumns as $column) {
-                    if ($row[$column] === null) {
-                        throw new \LogicException(\sprintf(
-                            'Cannot batch update: identity column "%s" is null at row index %d.',
-                            $column,
-                            $index,
-                        ));
-                    }
-                    $params[QueryBuilder::PARAM_PREFIX_WHERE . $column] = $row[$column];
-                }
-
-                $statement->execute($params);
-            }
-        });
     }
 
     public function getConnection(): ConnectionInterface
@@ -446,22 +421,6 @@ final readonly class DataMapper
     }
 
     /**
-     * @param list<string> $updateColumns
-     * @param list<string> $identityColumns
-     */
-    private function assertBatchUpdateFitsBindLimit(array $updateColumns, array $identityColumns, int $maxBindParameters): void
-    {
-        $requiredParameters = \count($updateColumns) + \count($identityColumns);
-        if ($requiredParameters > $maxBindParameters) {
-            throw new \LogicException(\sprintf(
-                'Cannot batch update: statement requires %d parameters, but maxBindParameters is %d.',
-                $requiredParameters,
-                $maxBindParameters,
-            ));
-        }
-    }
-
-    /**
      * @param list<object> $dtos
      * @return array{0: string, 1: list<array<string, mixed>>, 2: Mapping|null}
      */
@@ -503,43 +462,6 @@ final readonly class DataMapper
         }
 
         return [$table, $rows, $mapping];
-    }
-
-    /**
-     * @param list<array<string, mixed>> $rows
-     */
-    private function executeChunkedInsert(string $table, array $rows, int $maxBindParameters, string $suffix = ''): void
-    {
-        if ($maxBindParameters < 1) {
-            throw new \LogicException('maxBindParameters must be greater than zero.');
-        }
-
-        $columns = array_keys($rows[0]);
-        $columnCount = \count($columns);
-        if ($columnCount > $maxBindParameters) {
-            throw new \LogicException(\sprintf(
-                'Cannot execute batch insert: %d columns exceed max bind parameters %d.',
-                $columnCount,
-                $maxBindParameters,
-            ));
-        }
-
-        $chunkSize = max(1, intdiv($maxBindParameters, $columnCount));
-
-        $this->connection->transactional(function () use ($table, $rows, $columns, $chunkSize, $suffix): void {
-            foreach (array_chunk($rows, $chunkSize) as $chunk) {
-                $sql = SqlFragments::buildMultiRowInsertSql($table, $columns, \count($chunk)) . $suffix;
-
-                $params = [];
-                foreach ($chunk as $rowIndex => $row) {
-                    foreach ($columns as $column) {
-                        $params[$column . '_' . $rowIndex] = $row[$column];
-                    }
-                }
-
-                $this->connection->executeStatement($sql, $params);
-            }
-        });
     }
 
     /**

@@ -84,6 +84,27 @@ final class DataMapperReadOperationsTest extends TestCase
         self::assertSame('0', (string) $this->connection->fetchOne('SELECT COUNT(*) FROM user_dtos WHERE id = 10'));
     }
 
+    public function testSaveWorksWithoutDatabaseConflictConstraint(): void
+    {
+        $this->connection->executeStatement('CREATE TABLE save_only_records (external_id TEXT NOT NULL, payload TEXT NOT NULL)');
+
+        $record = new class () {
+            public string $externalId;
+            public string $payload;
+        };
+
+        $record->externalId = 'ext-1';
+        $record->payload = 'first';
+
+        $this->mapper->save('save_only_records', $record, 'externalId');
+
+        $record->payload = 'second';
+        $this->mapper->save('save_only_records', $record, 'externalId');
+
+        self::assertSame('1', (string) $this->connection->fetchOne('SELECT COUNT(*) FROM save_only_records WHERE external_id = ?', ['ext-1']));
+        self::assertSame('second', $this->connection->fetchOne('SELECT payload FROM save_only_records WHERE external_id = ?', ['ext-1']));
+    }
+
     public function testUpdateWithWhereAffectsExpectedRow(): void
     {
         $user = $this->createUser(20, 'old@example.com');

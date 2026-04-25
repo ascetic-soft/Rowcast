@@ -71,4 +71,26 @@ final class ExtractorTest extends TestCase
         self::assertArrayNotHasKey('title', $data);
         self::assertSame('{"b":2}', $data['publish_data']);
     }
+
+    public function testExtractUsesUpdatedMappingConfigurationAcrossRepeatedCalls(): void
+    {
+        $extractor = new Extractor(new SnakeCaseToCamelCase(), TypeConverterRegistry::defaults());
+        $dto = new CardDto();
+        $dto->id = 'c3';
+        $dto->title = 'Card';
+        $dto->publishData = ['c' => 3];
+
+        $mapping = Mapping::auto(CardDto::class, 'cards')
+            ->column('keyword_meta', 'publishData');
+
+        $first = $extractor->extract($dto, $mapping);
+
+        self::assertArrayHasKey('keyword_meta', $first);
+
+        $mapping->ignore('publishData');
+
+        $second = $extractor->extract($dto, $mapping);
+
+        self::assertArrayNotHasKey('keyword_meta', $second);
+    }
 }

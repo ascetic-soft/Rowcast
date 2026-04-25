@@ -9,6 +9,15 @@ final class TypeConverterRegistry implements TypeConverterInterface
     /** @var list<TypeConverterInterface> */
     private array $converters;
 
+    /** @var array<string, TypeConverterInterface|null> */
+    private array $supportsCache = [];
+
+    /** @var array<string, TypeConverterInterface|null> */
+    private array $toPhpCache = [];
+
+    /** @var array<string, TypeConverterInterface|null> */
+    private array $toDbCache = [];
+
     /**
      * @param list<TypeConverterInterface> $converters
      */
@@ -30,6 +39,9 @@ final class TypeConverterRegistry implements TypeConverterInterface
     public function add(TypeConverterInterface $converter): self
     {
         $this->converters[] = $converter;
+        $this->supportsCache = [];
+        $this->toPhpCache = [];
+        $this->toDbCache = [];
 
         return $this;
     }
@@ -38,10 +50,7 @@ final class TypeConverterRegistry implements TypeConverterInterface
     {
         [$type] = $this->normalizeType($phpType);
 
-        return array_any(
-            $this->converters,
-            static fn (TypeConverterInterface $converter): bool => $converter->supports($type),
-        );
+        return $this->resolveConverterForPhpType($type, $this->supportsCache) !== null;
     }
 
     public function toPhp(mixed $value, string $phpType): mixed
@@ -52,10 +61,9 @@ final class TypeConverterRegistry implements TypeConverterInterface
             return null;
         }
 
-        foreach ($this->converters as $converter) {
-            if ($converter->supports($type)) {
-                return $converter->toPhp($value, $type);
-            }
+        $converter = $this->resolveConverterForPhpType($type, $this->toPhpCache);
+        if ($converter !== null) {
+            return $converter->toPhp($value, $type);
         }
 
         throw new \InvalidArgumentException(\sprintf('No type converter registered for type "%s".', $type));
@@ -69,13 +77,30 @@ final class TypeConverterRegistry implements TypeConverterInterface
 
         $type = get_debug_type($value);
 
-        foreach ($this->converters as $converter) {
-            if ($converter->supports($type)) {
-                return $converter->toDb($value);
-            }
+        $converter = $this->resolveConverterForPhpType($type, $this->toDbCache);
+        if ($converter !== null) {
+            return $converter->toDb($value);
         }
 
         return $value;
+    }
+
+    /**
+     * @param array<string, TypeConverterInterface|null> $cache
+     */
+    private function resolveConverterForPhpType(string $type, array &$cache): ?TypeConverterInterface
+    {
+        if (array_key_exists($type, $cache)) {
+            return $cache[$type];
+        }
+
+        foreach ($this->converters as $converter) {
+            if ($converter->supports($type)) {
+                return $cache[$type] = $converter;
+            }
+        }
+
+        return $cache[$type] = null;
     }
 
     /**

@@ -7,8 +7,14 @@ namespace AsceticSoft\Rowcast;
 use AsceticSoft\Rowcast\NameConverter\NameConverterInterface;
 use AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface;
 
-final readonly class Hydrator
+final class Hydrator
 {
+    /** @var array<class-string, \ReflectionClass<object>> */
+    private static array $reflectionClasses = [];
+
+    /** @var array<class-string, array<string, \ReflectionProperty>> */
+    private static array $reflectionProperties = [];
+
     public function __construct(
         private TypeConverterInterface $typeConverter,
         private NameConverterInterface $nameConverter,
@@ -22,18 +28,15 @@ final readonly class Hydrator
      */
     public function hydrate(string $className, array $row, ?Mapping $mapping = null): object
     {
-        $reflectionClass = new \ReflectionClass($className);
+        [$reflectionClass, $propertyMap, $properties] = $this->prepareMetadata($className, $mapping);
         $object = $reflectionClass->newInstanceWithoutConstructor();
 
-        $propertyMapResolver = $this->propertyMapResolver ?? new PropertyMapResolver();
-
-        foreach ($propertyMapResolver->resolve($mapping, $reflectionClass, $this->nameConverter) as $columnName => $propertyName) {
+        foreach ($propertyMap as $columnName => $propertyName) {
             if (!\array_key_exists($columnName, $row)) {
                 continue;
             }
 
-            $property = $reflectionClass->getProperty($propertyName);
-            $this->setProperty($object, $property, $row[$columnName]);
+            $this->setProperty($object, $properties[$propertyName], $row[$columnName]);
         }
 
         return $object;
@@ -46,12 +49,53 @@ final readonly class Hydrator
      */
     public function hydrateAll(string $className, array $rows, ?Mapping $mapping = null): array
     {
+        [$reflectionClass, $propertyMap, $properties] = $this->prepareMetadata($className, $mapping);
         $result = [];
+
         foreach ($rows as $row) {
-            $result[] = $this->hydrate($className, $row, $mapping);
+            $object = $reflectionClass->newInstanceWithoutConstructor();
+
+            foreach ($propertyMap as $columnName => $propertyName) {
+                if (!\array_key_exists($columnName, $row)) {
+                    continue;
+                }
+
+                $this->setProperty($object, $properties[$propertyName], $row[$columnName]);
+            }
+
+            $result[] = $object;
         }
 
         return $result;
+    }
+
+    /**
+     * @param class-string $className
+     * @return array{0: \ReflectionClass<object>, 1: array<string, string>, 2: array<string, \ReflectionProperty>}
+     */
+    private function prepareMetadata(string $className, ?Mapping $mapping): array
+    {
+        $reflectionClass = self::$reflectionClasses[$className] ??= new \ReflectionClass($className);
+        $propertyMapResolver = $this->propertyMapResolver ?? new PropertyMapResolver();
+        $propertyMap = $propertyMapResolver->resolve($mapping, $reflectionClass, $this->nameConverter);
+        $properties = self::$reflectionProperties[$className] ??= $this->buildPropertyCache($reflectionClass);
+
+        return [$reflectionClass, $propertyMap, $properties];
+    }
+
+    /**
+     * @param \ReflectionClass<object> $reflectionClass
+     * @return array<string, \ReflectionProperty>
+     */
+    private function buildPropertyCache(\ReflectionClass $reflectionClass): array
+    {
+        $properties = [];
+
+        foreach ($reflectionClass->getProperties() as $property) {
+            $properties[$property->getName()] = $property;
+        }
+
+        return $properties;
     }
 
     private function setProperty(object $object, \ReflectionProperty $property, mixed $value): void

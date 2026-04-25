@@ -6,8 +6,11 @@ namespace AsceticSoft\Rowcast;
 
 use AsceticSoft\Rowcast\NameConverter\NameConverterInterface;
 
-final readonly class TargetResolver
+final class TargetResolver
 {
+    /** @var array<class-string, string> */
+    private static array $derivedTableNames = [];
+
     public function __construct(
         private NameConverterInterface $nameConverter,
     ) {
@@ -69,9 +72,13 @@ final readonly class TargetResolver
      */
     private function deriveTableName(string $className): string
     {
+        if (isset(self::$derivedTableNames[$className])) {
+            return self::$derivedTableNames[$className];
+        }
+
         $shortName = new \ReflectionClass($className)->getShortName();
         $replaced = preg_replace('/(?<!^)[A-Z]/', '_$0', $shortName);
 
-        return strtolower($replaced ?? $shortName) . 's';
+        return self::$derivedTableNames[$className] = strtolower($replaced ?? $shortName) . 's';
     }
 }

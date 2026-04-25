@@ -61,6 +61,12 @@ final class Mapping
     }
 
     /**
+     * Mapping is currently mutable and is configured in place via column()
+     * and ignore(). Treat it as a setup object and avoid mutating it after
+     * reusing it across multiple operations or services.
+     */
+
+    /**
      * @return class-string
      */
     public function getClassName(): string
@@ -89,6 +95,14 @@ final class Mapping
     public function isIgnored(string $propertyName): bool
     {
         return isset($this->ignored[$propertyName]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getIgnoredProperties(): array
+    {
+        return array_keys($this->ignored);
     }
 
     public function getPropertyForColumn(string $columnName): ?string
