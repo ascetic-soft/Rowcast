@@ -100,7 +100,7 @@ final readonly class WriteOperations
         [$table, $data, $mapping] = $this->prepareResolvedWrite($target, $dto, 'upsert');
         $conflictProperties = array_values($conflictProperties);
 
-        $conflictColumns = $this->resolveColumns($conflictProperties, $data, $mapping, 'Conflict');
+        $conflictColumns = $this->targetResolver->resolveExtractedColumns($conflictProperties, $data, $mapping, 'Conflict');
 
         $updateColumns = array_values(array_filter(
             array_keys($data),
@@ -152,29 +152,6 @@ final readonly class WriteOperations
         }
 
         return $values;
-    }
-
-    /**
-     * @param list<string> $propertyNames
-     * @param array<string, mixed> $firstRow
-     * @return list<string>
-     */
-    private function resolveColumns(
-        array $propertyNames,
-        array $firstRow,
-        ?Mapping $mapping,
-        string $label,
-    ): array {
-        $columns = [];
-        foreach ($propertyNames as $propertyName) {
-            $columnName = $this->targetResolver->resolveColumnName($propertyName, $mapping);
-            if (!\array_key_exists($columnName, $firstRow)) {
-                throw new \LogicException(\sprintf('%s property "%s" is not extracted.', $label, $propertyName));
-            }
-            $columns[] = $columnName;
-        }
-
-        return $columns;
     }
 
     /**

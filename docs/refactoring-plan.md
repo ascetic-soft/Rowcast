@@ -20,16 +20,15 @@ Completed:
 - Extract `ReadOperations`
 - Extract `WriteOperations`
 - Extract `BatchWriteOperations`
+- Simplify the role of `BulkWriter`
+- Centralize property-to-column resolution
 - Reassess and remove `QueryHelper`
 - Clean up `Connection` internals
 - Normalize guard clauses in write and batch flows
-
-Partially completed:
-- Simplify the role of `BulkWriter`
-- Centralize property-to-column resolution
+- Reconfirm `Mapping` documentation and usage boundaries
 
 Remaining:
-- Reconfirm `Mapping` documentation and usage boundaries
+- No planned refactoring work remains in this pass.
 
 ### 1. Extract read-path from `DataMapper`
 
@@ -130,7 +129,7 @@ Done when:
 ### 4. Simplify the role of `BulkWriter`
 
 Status:
-- Partially completed
+- Completed
 
 Files:
 - `src/BulkWriter.php`
@@ -157,6 +156,9 @@ Current state:
 - `BulkWriter` remains focused on chunked insert and batch update execution.
 - No public API changes were made in `BulkWriter`.
 
+Result:
+- `BulkWriter` now sits behind batch orchestration instead of sharing policy duties with `DataMapper`.
+
 Risk:
 - Low to medium
 
@@ -166,7 +168,7 @@ Done when:
 ### 5. Centralize property-to-column resolution
 
 Status:
-- Partially completed
+- Completed
 
 Files:
 - `src/TargetResolver.php`
@@ -183,9 +185,10 @@ Intent:
 - Prevent rule drift between normal and batch writes.
 
 Current state:
-- Property-to-column resolution is now localized to operation classes instead of `DataMapper`.
-- `TargetResolver` remains the owner of `resolveColumnName()` and identity WHERE construction.
-- There is still duplication between `WriteOperations` and `BatchWriteOperations` for extracted-column validation.
+- `TargetResolver` owns `resolveColumnName()`, identity WHERE construction, and extracted-column resolution.
+
+Result:
+- Shared extracted-column validation has been centralized in `TargetResolver::resolveExtractedColumns()`.
 
 Risk:
 - Medium
@@ -279,7 +282,7 @@ Result:
 ### 9. Keep `Mapping` as a documented setup object
 
 Status:
-- Not started
+- Completed
 
 Files:
 - `src/Mapping.php`
@@ -299,6 +302,9 @@ Risk:
 Done when:
 - `Mapping` behavior is explicit and unchanged.
 
+Result:
+- `Mapping` documentation now clearly describes it as a mutable setup object that should be configured per usage context.
+
 ## Suggested Execution Order
 
 1. Extract `ReadOperations`
@@ -313,8 +319,8 @@ Done when:
 
 ## Current Recommendation
 
-1. Stop here unless there is a concrete need to further reduce duplication between `WriteOperations` and `BatchWriteOperations`.
-2. If continuing, do only a small pass on mapping documentation and setup-object expectations.
+1. Stop here unless new feature work reveals a concrete pain point.
+2. Prefer keeping the current split between facade, operation classes, and execution helpers.
 3. Avoid introducing new shared abstractions unless repeated change pressure appears in future work.
 
 ## Risk Summary

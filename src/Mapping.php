@@ -63,7 +63,9 @@ final class Mapping
     /**
      * Mapping is currently mutable and is configured in place via column()
      * and ignore(). Treat it as a setup object and avoid mutating it after
-     * reusing it across multiple operations or services.
+     * reusing it across multiple operations or services. Prefer creating and
+     * configuring a mapping once per usage context instead of sharing one
+     * mutable instance across long-lived services.
      */
 
     /**

@@ -62,6 +62,26 @@ final class TargetResolver
         return $where;
     }
 
+    /**
+     * @param list<string> $propertyNames
+     * @param array<string, mixed> $data
+     * @return list<string>
+     */
+    public function resolveExtractedColumns(array $propertyNames, array $data, ?Mapping $mapping, string $label): array
+    {
+        $columns = [];
+
+        foreach ($propertyNames as $propertyName) {
+            $columnName = $this->resolveColumnName($propertyName, $mapping);
+            if (!\array_key_exists($columnName, $data)) {
+                throw new \LogicException(\sprintf('%s property "%s" is not extracted.', $label, $propertyName));
+            }
+            $columns[] = $columnName;
+        }
+
+        return $columns;
+    }
+
     public function resolveColumnName(string $propertyName, ?Mapping $mapping): string
     {
         return $mapping?->getColumnForProperty($propertyName) ?? $this->nameConverter->toColumnName($propertyName);

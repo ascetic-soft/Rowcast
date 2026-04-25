@@ -54,7 +54,7 @@ final readonly class BatchWriteOperations
         }
 
         $effectiveMaxBindParameters = $this->resolveMaxBindParameters($maxBindParameters, $dialect->getMaxBindParameters());
-        $conflictColumns = $this->resolveColumns($conflictProperties, $rows[0], $mapping, 'Conflict');
+        $conflictColumns = $this->targetResolver->resolveExtractedColumns($conflictProperties, $rows[0], $mapping, 'Conflict');
         $updateColumns = $this->resolveNonKeyColumns(array_keys($rows[0]), $conflictColumns);
         $upsertClause = $dialect->compileUpsertClause($conflictColumns, $updateColumns);
 
@@ -79,7 +79,7 @@ final readonly class BatchWriteOperations
 
         [$table, $rows, $mapping] = $this->extractAll($target, $dtos, 'update');
         $effectiveMaxBindParameters = $this->resolveMaxBindParameters($maxBindParameters);
-        $identityColumns = $this->resolveColumns($identityProperties, $rows[0], $mapping, 'Identity');
+        $identityColumns = $this->targetResolver->resolveExtractedColumns($identityProperties, $rows[0], $mapping, 'Identity');
         $updateColumns = $this->resolveBatchUpdateColumns(array_keys($rows[0]), $identityColumns);
 
         $this->bulkWriter->executeBatchUpdate(
@@ -107,29 +107,6 @@ final readonly class BatchWriteOperations
         if ($propertyNames === []) {
             throw new \LogicException(\sprintf('Cannot %s: %s properties are required.', $operation, $label));
         }
-    }
-
-    /**
-     * @param list<string> $propertyNames
-     * @param array<string, mixed> $firstRow
-     * @return list<string>
-     */
-    private function resolveColumns(
-        array $propertyNames,
-        array $firstRow,
-        ?Mapping $mapping,
-        string $label,
-    ): array {
-        $columns = [];
-        foreach ($propertyNames as $propertyName) {
-            $columnName = $this->targetResolver->resolveColumnName($propertyName, $mapping);
-            if (!\array_key_exists($columnName, $firstRow)) {
-                throw new \LogicException(\sprintf('%s property "%s" is not extracted.', $label, $propertyName));
-            }
-            $columns[] = $columnName;
-        }
-
-        return $columns;
     }
 
     private function resolveMaxBindParameters(?int $maxBindParameters, ?int $default = null): int
