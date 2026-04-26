@@ -42,8 +42,8 @@ final readonly class BulkWriter
 
             for ($offset = 0; $offset < $rowCount; $offset += $chunkSize) {
                 $currentChunkSize = min($chunkSize, $rowCount - $offset);
-                $sql = $sqlByChunkSize[$currentChunkSize]
-                    ??= SqlFragments::buildMultiRowInsertSql($table, $columns, $currentChunkSize) . $suffix;
+                $sqlByChunkSize[$currentChunkSize] = SqlFragments::buildMultiRowInsertSql($table, $columns, $currentChunkSize) . $suffix;
+                $sql = $sqlByChunkSize[$currentChunkSize];
                 $params = [];
 
                 for ($rowIndex = 0; $rowIndex < $currentChunkSize; ++$rowIndex) {

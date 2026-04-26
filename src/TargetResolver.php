@@ -12,7 +12,7 @@ final class TargetResolver
     private static array $derivedTableNames = [];
 
     public function __construct(
-        private NameConverterInterface $nameConverter,
+        private readonly NameConverterInterface $nameConverter,
     ) {
     }
 

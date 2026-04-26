@@ -528,7 +528,7 @@ class QueryBuilder
     private function clearWhereParameters(): void
     {
         foreach (array_keys($this->parameters) as $key) {
-            if (is_string($key) && str_starts_with($key, self::PARAM_PREFIX_WHERE)) {
+            if (\is_string($key) && str_starts_with($key, self::PARAM_PREFIX_WHERE)) {
                 unset($this->parameters[$key]);
             }
         }

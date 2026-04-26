@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace AsceticSoft\Rowcast;
 
 use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface;
 
 interface ConnectionInterface
 {
+    public function getTypeConverter(): TypeConverterInterface;
+
+    public function setTypeConverter(TypeConverterInterface $typeConverter): void;
+
     public function createQueryBuilder(): QueryBuilder;
 
     /**

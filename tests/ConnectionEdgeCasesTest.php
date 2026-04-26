@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace AsceticSoft\Rowcast\Tests;
 
 use AsceticSoft\Rowcast\Connection;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 use PHPUnit\Framework\TestCase;
 
 final class ConnectionEdgeCasesTest extends TestCase
@@ -141,5 +143,15 @@ final class ConnectionEdgeCasesTest extends TestCase
 
         self::assertSame(0, $connection->getTransactionNestingLevel());
         self::assertSame('0', (string) $connection->fetchOne('SELECT COUNT(*) FROM items'));
+    }
+
+    public function testTypeConverterGetterAndSetter(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+        self::assertInstanceOf(TypeConverterInterface::class, $connection->getTypeConverter());
+
+        $converter = TypeConverterRegistry::defaults();
+        $connection->setTypeConverter($converter);
+        self::assertSame($converter, $connection->getTypeConverter());
     }
 }

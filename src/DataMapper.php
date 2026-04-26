@@ -11,10 +11,8 @@ use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 
 final readonly class DataMapper
 {
-    private Hydrator $hydrator;
     private Extractor $extractor;
     private TargetResolver $targetResolver;
-    private BulkWriter $bulkWriter;
     private ReadOperations $readOperations;
     private WriteOperations $writeOperations;
     private BatchWriteOperations $batchWriteOperations;
@@ -29,13 +27,13 @@ final readonly class DataMapper
     ) {
         $nameConverter ??= new SnakeCaseToCamelCase();
         $typeConverter ??= TypeConverterRegistry::defaults();
-        $this->hydrator = $hydrator ?? new Hydrator($typeConverter, $nameConverter);
+        $hydrator ??= new Hydrator($typeConverter, $nameConverter);
         $this->extractor = $extractor ?? new Extractor($nameConverter, $typeConverter);
         $this->targetResolver = $targetResolver ?? new TargetResolver($nameConverter);
-        $this->bulkWriter = new BulkWriter($this->connection);
-        $this->readOperations = new ReadOperations($this->connection, $this->hydrator, $this->targetResolver);
+        $bulkWriter = new BulkWriter($this->connection);
+        $this->readOperations = new ReadOperations($this->connection, $hydrator, $this->targetResolver);
         $this->writeOperations = new WriteOperations($this->connection, $this->extractor, $this->targetResolver);
-        $this->batchWriteOperations = new BatchWriteOperations($this->connection, $this->extractor, $this->targetResolver, $this->bulkWriter);
+        $this->batchWriteOperations = new BatchWriteOperations($this->connection, $this->extractor, $this->targetResolver, $bulkWriter);
     }
 
     public function insert(string|Mapping $target, object $dto): void

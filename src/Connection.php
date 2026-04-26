@@ -15,7 +15,7 @@ use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 final class Connection implements ConnectionInterface
 {
     private int $transactionNestingLevel = 0;
-    private readonly TypeConverterInterface $typeConverter;
+    private TypeConverterInterface $typeConverter;
 
     /** @var array<string, \PDOStatement> */
     private array $statementCache = [];
@@ -58,6 +58,16 @@ final class Connection implements ConnectionInterface
         return new self($pdo, $nestTransactions, $typeConverter);
     }
 
+    public function getTypeConverter(): TypeConverterInterface
+    {
+        return $this->typeConverter;
+    }
+
+    public function setTypeConverter(TypeConverterInterface $typeConverter): void
+    {
+        $this->typeConverter = $typeConverter;
+    }
+
     /**
      * Creates a new QueryBuilder bound to this connection.
      */
@@ -73,7 +83,7 @@ final class Connection implements ConnectionInterface
      */
     public function executeQuery(string $sql, array $params = []): \PDOStatement
     {
-        return $this->prepareAndExecute($sql, $params, reuseStatement: false);
+        return $this->prepareAndExecute($sql, $params);
     }
 
     /**
@@ -83,9 +93,7 @@ final class Connection implements ConnectionInterface
      */
     public function executeStatement(string $sql, array $params = []): int
     {
-        $stmt = $this->prepareAndExecute($sql, $params, reuseStatement: true);
-
-        return $stmt->rowCount();
+        return $this->prepareAndExecute($sql, $params, reuseStatement: true)->rowCount();
     }
 
     /**

@@ -16,9 +16,9 @@ final class Extractor
     private static array $reflectionProperties = [];
 
     public function __construct(
-        private NameConverterInterface $nameConverter,
-        private TypeConverterInterface $typeConverter,
-        private ?PropertyMapResolver $propertyMapResolver = null,
+        private readonly NameConverterInterface $nameConverter,
+        private readonly TypeConverterInterface $typeConverter,
+        private readonly ?PropertyMapResolver   $propertyMapResolver = null,
     ) {
     }
 
@@ -28,10 +28,12 @@ final class Extractor
     public function extract(object $dto, ?Mapping $mapping = null): array
     {
         $className = $dto::class;
-        $reflectionClass = self::$reflectionClasses[$className] ??= new \ReflectionClass($dto);
+        self::$reflectionClasses[$className] = new \ReflectionClass($dto);
+        $reflectionClass = self::$reflectionClasses[$className];
         $result = [];
         $propertyMapResolver = $this->propertyMapResolver ?? new PropertyMapResolver();
-        $properties = self::$reflectionProperties[$className] ??= $this->buildPropertyCache($reflectionClass);
+        self::$reflectionProperties[$className] = $this->buildPropertyCache($reflectionClass);
+        $properties = self::$reflectionProperties[$className];
 
         foreach ($propertyMapResolver->resolve($mapping, $reflectionClass, $this->nameConverter) as $columnName => $propertyName) {
             $property = $properties[$propertyName];

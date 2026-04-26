@@ -90,7 +90,7 @@ final class TypeConverterRegistry implements TypeConverterInterface
      */
     private function resolveConverterForPhpType(string $type, array &$cache): ?TypeConverterInterface
     {
-        if (array_key_exists($type, $cache)) {
+        if (\array_key_exists($type, $cache)) {
             return $cache[$type];
         }
 

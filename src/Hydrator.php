@@ -19,9 +19,9 @@ final class Hydrator
     private static array $propertyTypes = [];
 
     public function __construct(
-        private TypeConverterInterface $typeConverter,
-        private NameConverterInterface $nameConverter,
-        private ?PropertyMapResolver $propertyMapResolver = null,
+        private readonly TypeConverterInterface $typeConverter,
+        private readonly NameConverterInterface $nameConverter,
+        private readonly ?PropertyMapResolver $propertyMapResolver = null,
     ) {
     }
 
@@ -102,11 +102,14 @@ final class Hydrator
      */
     private function prepareMetadata(string $className, ?Mapping $mapping): array
     {
-        $reflectionClass = self::$reflectionClasses[$className] ??= new \ReflectionClass($className);
+        self::$reflectionClasses[$className] = new \ReflectionClass($className);
+        $reflectionClass = self::$reflectionClasses[$className];
         $propertyMapResolver = $this->propertyMapResolver ?? new PropertyMapResolver();
         $propertyMap = $propertyMapResolver->resolve($mapping, $reflectionClass, $this->nameConverter);
-        $properties = self::$reflectionProperties[$className] ??= $this->buildPropertyCache($reflectionClass);
-        $propertyTypes = self::$propertyTypes[$className] ??= $this->buildPropertyTypeCache($properties);
+        self::$reflectionProperties[$className] = $this->buildPropertyCache($reflectionClass);
+        $properties = self::$reflectionProperties[$className];
+        self::$propertyTypes[$className] = $this->buildPropertyTypeCache($properties);
+        $propertyTypes = self::$propertyTypes[$className];
 
         return [$reflectionClass, $propertyMap, $properties, $propertyTypes];
     }
@@ -132,13 +135,7 @@ final class Hydrator
      */
     private function buildPropertyTypeCache(array $properties): array
     {
-        $propertyTypes = [];
-
-        foreach ($properties as $propertyName => $property) {
-            $propertyTypes[$propertyName] = $this->resolveTypeName($property);
-        }
-
-        return $propertyTypes;
+        return array_map(fn ($property) => $this->resolveTypeName($property), $properties);
     }
 
     private function setProperty(object $object, \ReflectionProperty $property, ?string $typeName, mixed $value): void
