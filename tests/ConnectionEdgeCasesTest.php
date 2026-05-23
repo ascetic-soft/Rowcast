@@ -20,6 +20,26 @@ final class ConnectionEdgeCasesTest extends TestCase
         self::assertSame('A', $connection->fetchOne('SELECT name FROM items WHERE id = 1'));
     }
 
+    public function testCreateExecutesCustomInitQuery(): void
+    {
+        $connection = Connection::create(
+            'sqlite::memory:',
+            initQuery: 'PRAGMA foreign_keys = ON',
+        );
+
+        self::assertSame(1, $connection->fetchOne('PRAGMA foreign_keys'));
+    }
+
+    public function testConstructorExecutesCustomInitQuery(): void
+    {
+        $connection = new Connection(
+            new \PDO('sqlite::memory:'),
+            initQuery: 'PRAGMA foreign_keys = ON',
+        );
+
+        self::assertSame(1, $connection->fetchOne('PRAGMA foreign_keys'));
+    }
+
     public function testFetchAssociativeReturnsFalseWithoutRows(): void
     {
         $connection = new Connection(new \PDO('sqlite::memory:'));

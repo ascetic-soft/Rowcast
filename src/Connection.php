@@ -28,9 +28,14 @@ final class Connection implements ConnectionInterface
         private readonly \PDO $pdo,
         private readonly bool $nestTransactions = false,
         ?TypeConverterInterface $typeConverter = null,
+        ?string $initQuery = null,
     ) {
         // Ensure PDO throws exceptions on errors — required for safe operation
         $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        if ($initQuery !== null) {
+            $this->pdo->exec($initQuery);
+        }
+
         $this->typeConverter = $typeConverter ?? TypeConverterRegistry::defaults();
     }
 
@@ -47,6 +52,7 @@ final class Connection implements ConnectionInterface
         array $options = [],
         bool $nestTransactions = false,
         ?TypeConverterInterface $typeConverter = null,
+        ?string $initQuery = null,
     ): self {
         $defaultOptions = [
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
@@ -55,7 +61,7 @@ final class Connection implements ConnectionInterface
 
         $pdo = new \PDO($dsn, $username, $password, array_replace($defaultOptions, $options));
 
-        return new self($pdo, $nestTransactions, $typeConverter);
+        return new self($pdo, $nestTransactions, $typeConverter, $initQuery);
     }
 
     public function getTypeConverter(): TypeConverterInterface
