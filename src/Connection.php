@@ -126,7 +126,10 @@ final class Connection implements ConnectionInterface
         $stmt = $this->prepareAndExecute($sql, $params, reuseStatement: true);
 
         try {
-            return array_values($stmt->fetchAll(\PDO::FETCH_ASSOC));
+            /** @var list<array<string, mixed>> $rows */
+            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            return $rows;
         } finally {
             $stmt->closeCursor();
         }
