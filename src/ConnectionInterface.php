@@ -16,6 +16,16 @@ interface ConnectionInterface
     public function createQueryBuilder(): QueryBuilder;
 
     /**
+     * @param callable(string, array<string|int, mixed>): void $listener
+     */
+    public function onBeforeQuery(callable $listener): void;
+
+    /**
+     * @param callable(string, array<string|int, mixed>, float, ?\Throwable): void $listener
+     */
+    public function onAfterQuery(callable $listener): void;
+
+    /**
      * @param array<string|int, mixed> $params
      */
     public function executeQuery(string $sql, array $params = []): \PDOStatement;

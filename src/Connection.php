@@ -20,6 +20,12 @@ final class Connection implements ConnectionInterface
     /** @var array<string, \PDOStatement> */
     private array $statementCache = [];
 
+    /** @var list<callable(string, array<string|int, mixed>): void> */
+    private array $beforeQueryListeners = [];
+
+    /** @var list<callable(string, array<string|int, mixed>, float, ?\Throwable): void> */
+    private array $afterQueryListeners = [];
+
     /**
      * @param bool $nestTransactions When true, nested beginTransaction()/commit()/rollBack()
      *                               calls use SQL SAVEPOINTs instead of failing.
@@ -83,6 +89,22 @@ final class Connection implements ConnectionInterface
     }
 
     /**
+     * @param callable(string, array<string|int, mixed>): void $listener
+     */
+    public function onBeforeQuery(callable $listener): void
+    {
+        $this->beforeQueryListeners[] = $listener;
+    }
+
+    /**
+     * @param callable(string, array<string|int, mixed>, float, ?\Throwable): void $listener
+     */
+    public function onAfterQuery(callable $listener): void
+    {
+        $this->afterQueryListeners[] = $listener;
+    }
+
+    /**
      * Executes an SQL query (SELECT) and returns the resulting statement.
      *
      * @param array<string|int, mixed> $params Positional (?) or named (:name) parameters
@@ -110,9 +132,40 @@ final class Connection implements ConnectionInterface
         $stmt = $reuseStatement
             ? ($this->statementCache[$sql] ??= $this->pdo->prepare($sql))
             : $this->pdo->prepare($sql);
-        $stmt->execute($params);
+        $this->dispatchBeforeQuery($sql, $params);
+
+        $startedAt = microtime(true);
+        try {
+            $stmt->execute($params);
+        } catch (\Throwable $e) {
+            $this->dispatchAfterQuery($sql, $params, microtime(true) - $startedAt, $e);
+
+            throw $e;
+        }
+
+        $this->dispatchAfterQuery($sql, $params, microtime(true) - $startedAt, null);
 
         return $stmt;
+    }
+
+    /**
+     * @param array<string|int, mixed> $params
+     */
+    private function dispatchBeforeQuery(string $sql, array $params): void
+    {
+        foreach ($this->beforeQueryListeners as $listener) {
+            $listener($sql, $params);
+        }
+    }
+
+    /**
+     * @param array<string|int, mixed> $params
+     */
+    private function dispatchAfterQuery(string $sql, array $params, float $duration, ?\Throwable $exception): void
+    {
+        foreach ($this->afterQueryListeners as $listener) {
+            $listener($sql, $params, $duration, $exception);
+        }
     }
 
     /**
@@ -299,7 +352,18 @@ final class Connection implements ConnectionInterface
 
         try {
             $stmt = $this->prepareIterableStatement($sql, $restoreBuffered);
-            $stmt->execute($params);
+            $this->dispatchBeforeQuery($sql, $params);
+
+            $startedAt = microtime(true);
+            try {
+                $stmt->execute($params);
+            } catch (\Throwable $e) {
+                $this->dispatchAfterQuery($sql, $params, microtime(true) - $startedAt, $e);
+
+                throw $e;
+            }
+
+            $this->dispatchAfterQuery($sql, $params, microtime(true) - $startedAt, null);
 
             try {
                 while (false !== ($row = $stmt->fetch(\PDO::FETCH_ASSOC))) {

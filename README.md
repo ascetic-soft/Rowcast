@@ -130,6 +130,20 @@ $row = $connection->fetchAssociative('SELECT * FROM users WHERE id = ?', [1]);
 $count = $connection->fetchOne('SELECT COUNT(*) FROM users');
 ```
 
+### Query Events
+
+Register lightweight listeners to observe SQL execution.
+
+```php
+$connection->onBeforeQuery(function (string $sql, array $params): void {
+    // log or inspect SQL before execution
+});
+
+$connection->onAfterQuery(function (string $sql, array $params, float $duration, ?\Throwable $exception): void {
+    // $exception is null for successful queries
+});
+```
+
 ### Transactions
 
 ```php

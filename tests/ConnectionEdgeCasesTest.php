@@ -174,4 +174,51 @@ final class ConnectionEdgeCasesTest extends TestCase
         $connection->setTypeConverter($converter);
         self::assertSame($converter, $connection->getTypeConverter());
     }
+
+    public function testQueryEventsAreDispatchedAroundSuccessfulQueries(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+        $events = [];
+
+        $connection->onBeforeQuery(function (string $sql, array $params) use (&$events): void {
+            $events[] = ['before', $sql, $params];
+        });
+        $connection->onAfterQuery(function (string $sql, array $params, float $duration, ?\Throwable $exception) use (&$events): void {
+            $events[] = ['after', $sql, $params, $duration >= 0.0, $exception];
+        });
+
+        $connection->executeStatement('CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+        $connection->executeStatement('INSERT INTO items (id, name) VALUES (:id, :name)', ['id' => 1, 'name' => 'A']);
+
+        self::assertSame([
+            ['before', 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)', []],
+            ['after', 'CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL)', [], true, null],
+            ['before', 'INSERT INTO items (id, name) VALUES (:id, :name)', ['id' => 1, 'name' => 'A']],
+            ['after', 'INSERT INTO items (id, name) VALUES (:id, :name)', ['id' => 1, 'name' => 'A'], true, null],
+        ], $events);
+    }
+
+    public function testAfterQueryEventReceivesExceptionForFailedQueries(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+        $events = [];
+
+        $connection->onBeforeQuery(function (string $sql, array $params) use (&$events): void {
+            $events[] = ['before', $sql, $params];
+        });
+        $connection->onAfterQuery(function (string $sql, array $params, float $duration, ?\Throwable $exception) use (&$events): void {
+            $events[] = ['after', $sql, $params, $duration >= 0.0, $exception::class];
+        });
+
+        try {
+            $connection->executeStatement('SELECT * FROM missing WHERE id = :id', ['id' => 1]);
+            self::fail('Expected query failure.');
+        } catch (\PDOException) {
+        }
+
+        self::assertSame([
+            ['before', 'SELECT * FROM missing WHERE id = :id', ['id' => 1]],
+            ['after', 'SELECT * FROM missing WHERE id = :id', ['id' => 1], true, \PDOException::class],
+        ], $events);
+    }
 }
