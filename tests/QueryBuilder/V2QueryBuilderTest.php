@@ -530,7 +530,6 @@ final class V2QueryBuilderTest extends TestCase
     private function readQueryBuilderParameters(QueryBuilder $qb): array
     {
         $reflection = new \ReflectionProperty(QueryBuilder::class, 'parameters');
-        $reflection->setAccessible(true);
 
         /** @var array<string|int, mixed> $parameters */
         $parameters = $reflection->getValue($qb);
