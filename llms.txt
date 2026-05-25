@@ -1,0 +1,209 @@
+# Rowcast
+
+> Lightweight DataMapper and QueryBuilder over PDO for PHP 8.4+.
+
+Rowcast maps database rows to DTO objects and back using reflection. It supports automatic and explicit column/property mapping, typed hydration/extraction, custom converters, transactions, query events, and a fluent SQL query builder with dialect-aware UPSERT support for MySQL, PostgreSQL, and SQLite.
+
+Package: `ascetic-soft/rowcast`
+
+Namespace: `AsceticSoft\Rowcast`
+
+Requires: PHP `>=8.4`, `ext-pdo`
+License: MIT
+Repository: https://github.com/ascetic-soft/Rowcast
+Documentation: https://ascetic-soft.github.io/Rowcast/
+
+## Install
+
+```bash
+composer require ascetic-soft/rowcast
+```
+
+## Core Classes
+
+- `AsceticSoft\Rowcast\Connection`: PDO wrapper with raw query helpers, transactions, nested transactions via savepoints, query listeners, and `createQueryBuilder()`.
+- `AsceticSoft\Rowcast\DataMapper`: orchestrates DTO hydration, extraction, reads, writes, batch writes, save, and upsert operations.
+- `AsceticSoft\Rowcast\Mapping`: explicit mapping configuration for DTO class, table name, column/property overrides, ignored properties, and opt-in explicit field lists.
+- `AsceticSoft\Rowcast\QueryBuilder\QueryBuilder`: fluent SQL builder for SELECT, INSERT, UPDATE, DELETE, and UPSERT.
+- `AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry`: registry for PHP/DB value conversion.
+- `AsceticSoft\Rowcast\NameConverter\SnakeCaseToCamelCase`: default name converter between DB columns and DTO properties.
+
+## Quick Start
+
+```php
+use AsceticSoft\Rowcast\Connection;
+use AsceticSoft\Rowcast\DataMapper;
+
+final class UserDto
+{
+    public int $id;
+    public string $email;
+    public bool $isActive;
+}
+
+$connection = Connection::create('sqlite::memory:');
+$mapper = new DataMapper($connection);
+
+$user = new UserDto();
+$user->email = 'alice@example.com';
+$user->isActive = true;
+
+$mapper->insert('users', $user);
+
+/** @var UserDto|null $found */
+$found = $mapper->findOne(UserDto::class, ['email' => 'alice@example.com']);
+```
+
+## DataMapper API
+
+Targets are either a table name string or a `Mapping` instance. For reads, a DTO class-string target derives the table name from the DTO short class name: `UserDto` becomes `user_dtos`.
+
+Common methods:
+
+- `insert(string|Mapping $target, object $dto): void`
+- `batchInsert(string|Mapping $target, array $dtos, ?int $maxBindParameters = null): void`
+- `update(string|Mapping $target, object $dto, array $where): int`
+- `batchUpdate(string|Mapping $target, array $dtos, array $identityProperties, ?int $maxBindParameters = null): void`
+- `delete(string|Mapping $target, array $where): int`
+- `findAll(string|Mapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null): array`
+- `iterateAll(string|Mapping $target, array $where = [], array $orderBy = [], ?int $limit = null, ?int $offset = null): iterable`
+- `findOne(string|Mapping $target, array $where = []): ?object`
+- `hydrate(string|Mapping $target, array $row): object`
+- `hydrateAll(string|Mapping $target, array $rows): array`
+- `extract(string|Mapping $target, object $dto): array`
+- `save(string|Mapping $target, object $dto, string ...$identityProperties): void`
+- `upsert(string|Mapping $target, object $dto, string ...$conflictProperties): int`
+- `batchUpsert(string|Mapping $target, array $dtos, array $conflictProperties, ?int $maxBindParameters = null): void`
+
+## Mapping
+
+Use automatic mapping when database columns match DTO properties through the default snake_case to camelCase converter.
+
+```php
+$users = $mapper->findAll(UserDto::class, ['is_active' => 1]);
+$mapper->insert('users', $user);
+```
+
+Use `Mapping::auto()` to override selected columns while still auto-discovering other properties.
+
+```php
+use AsceticSoft\Rowcast\Mapping;
+
+$mapping = Mapping::auto(UserDto::class, 'custom_users')
+    ->column('usr_email', 'email')
+    ->ignore('internalNote');
+
+$user = $mapper->findOne($mapping, ['id' => 1]);
+```
+
+Use `Mapping::explicit()` when only declared columns should be read/written.
+
+```php
+$mapping = Mapping::explicit(UserDto::class, 'custom_users')
+    ->column('id', 'id')
+    ->column('usr_email', 'email');
+```
+
+`Mapping` is mutable. Build it once during setup and avoid mutating a shared instance after it is reused by services or operations.
+
+## Connection
+
+```php
+use AsceticSoft\Rowcast\Connection;
+
+$connection = Connection::create(
+    dsn: 'mysql:host=localhost;dbname=app',
+    username: 'root',
+    password: 'secret',
+    nestTransactions: true,
+);
+
+$rows = $connection->fetchAllAssociative('SELECT * FROM users WHERE active = ?', [1]);
+$row = $connection->fetchAssociative('SELECT * FROM users WHERE id = ?', [1]);
+$count = $connection->fetchOne('SELECT COUNT(*) FROM users');
+$affected = $connection->executeStatement('UPDATE users SET active = ? WHERE id = ?', [0, 1]);
+```
+
+Nested transactions are opt-in with `nestTransactions: true` and use SQL savepoints.
+
+```php
+$connection->transactional(function (Connection $conn): void {
+    $conn->executeStatement('INSERT INTO users (email) VALUES (?)', ['alice@example.com']);
+});
+```
+
+Register query listeners with `onBeforeQuery()` and `onAfterQuery()`.
+
+## Query Builder
+
+```php
+$rows = $connection->createQueryBuilder()
+    ->select('u.id', 'u.email')
+    ->from('users', 'u')
+    ->where(['u.is_active' => 1])
+    ->orderBy('u.id', 'DESC')
+    ->setOffset(20)
+    ->setLimit(10)
+    ->fetchAllAssociative();
+```
+
+Array predicates support equality, null checks, `IN`, `NOT IN`, comparison operators, `LIKE`, `NOT LIKE`, PostgreSQL-only `ILIKE`/`NOT ILIKE`, and `BETWEEN`.
+
+```php
+$users = $mapper->findAll(UserDto::class, where: [
+    'deleted_at' => null,
+    'status' => ['active', 'pending'],
+    'age >=' => 18,
+    '$or' => [
+        ['role' => 'admin'],
+        ['$and' => [
+            ['verified' => true],
+            ['score >' => 100],
+        ]],
+    ],
+]);
+```
+
+UPSERT is dialect-aware.
+
+```php
+$affected = $mapper->upsert('users', $user, 'email');
+
+$sql = $connection->createQueryBuilder()
+    ->upsert('users')
+    ->values(['email' => ':email', 'name' => ':name'])
+    ->onConflict('email')
+    ->doUpdateSet(['name'])
+    ->getSQL();
+```
+
+## Type Conversion
+
+Built-in converters handle scalar values, booleans, `DateTimeInterface`, arrays as JSON, and backed enums. Add custom converters by implementing `AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface` and passing a registry to `DataMapper` or `Connection`.
+
+```php
+use AsceticSoft\Rowcast\DataMapper;
+use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
+
+$converters = TypeConverterRegistry::defaults()->add(new UuidConverter());
+$mapper = new DataMapper($connection, typeConverter: $converters);
+```
+
+## Batch Writes
+
+`batchInsert()` and `batchUpsert()` automatically split large input into chunks based on database bind-parameter limits, such as SQLite's `999` bind-parameter limit, and execute chunks inside one transaction.
+
+```php
+$mapper->batchInsert('users', [$user1, $user2, $user3]);
+$mapper->batchUpsert('users', [$user1, $user2, $user3], ['email']);
+$mapper->batchUpdate('users', [$user1, $user2, $user3], ['id']);
+```
+
+## Development
+
+```bash
+composer install
+make ci
+```
+
+Individual checks: `make cs-check`, `make phpstan`, `make test`.

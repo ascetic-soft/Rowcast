@@ -12,7 +12,7 @@ Lightweight DataMapper over PDO for PHP 8.4+.
 
 Rowcast maps database rows to DTOs and back using reflection, supports explicit/auto mapping, type conversion, and includes a fluent query builder with dialect-aware UPSERT.
 
-**Documentation:** [English](https://ascetic-soft.github.io/Rowcast/) | [Русский](https://ascetic-soft.github.io/Rowcast/ru/)
+**Documentation:** [English](https://ascetic-soft.github.io/Rowcast/) | [Русский](https://ascetic-soft.github.io/Rowcast/ru/) | [LLM/Context7](llms.txt)
 
 ## Requirements
 
