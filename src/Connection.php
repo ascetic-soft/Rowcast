@@ -129,13 +129,13 @@ final class Connection implements ConnectionInterface
      */
     private function prepareAndExecute(string $sql, array $params = [], bool $reuseStatement = false): \PDOStatement
     {
-        $stmt = $reuseStatement
-            ? ($this->statementCache[$sql] ??= $this->pdo->prepare($sql))
-            : $this->pdo->prepare($sql);
         $this->dispatchBeforeQuery($sql, $params);
 
         $startedAt = microtime(true);
         try {
+            $stmt = $reuseStatement
+                ? ($this->statementCache[$sql] ??= $this->pdo->prepare($sql))
+                : $this->pdo->prepare($sql);
             $stmt->execute($params);
         } catch (\Throwable $e) {
             $this->dispatchAfterQuery($sql, $params, microtime(true) - $startedAt, $e);
@@ -351,11 +351,11 @@ final class Connection implements ConnectionInterface
         $restoreBuffered = false;
 
         try {
-            $stmt = $this->prepareIterableStatement($sql, $restoreBuffered);
             $this->dispatchBeforeQuery($sql, $params);
 
             $startedAt = microtime(true);
             try {
+                $stmt = $this->prepareIterableStatement($sql, $restoreBuffered);
                 $stmt->execute($params);
             } catch (\Throwable $e) {
                 $this->dispatchAfterQuery($sql, $params, microtime(true) - $startedAt, $e);
