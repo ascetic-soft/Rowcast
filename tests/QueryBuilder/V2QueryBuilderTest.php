@@ -6,6 +6,7 @@ namespace AsceticSoft\Rowcast\Tests\QueryBuilder;
 
 use AsceticSoft\Rowcast\Connection;
 use AsceticSoft\Rowcast\ConnectionInterface;
+use AsceticSoft\Rowcast\QueryBuilder\Expression\Expression;
 use AsceticSoft\Rowcast\QueryBuilder\QueryBuilder;
 use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 use AsceticSoft\Rowcast\Tests\Fixtures\UserStatus;
@@ -535,5 +536,78 @@ final class V2QueryBuilderTest extends TestCase
         $parameters = $reflection->getValue($qb);
 
         return $parameters;
+    }
+
+    public function testSetWithExpressionGeneratesRawSql(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+
+        $sql = $connection->createQueryBuilder()
+            ->update('credit_accounts')
+            ->set('balance', Expression::raw('balance - :amount'))
+            ->where(['id' => 1])
+            ->getSQL();
+
+        self::assertSame(
+            'UPDATE credit_accounts SET balance = balance - :amount WHERE id = :w_id',
+            $sql,
+        );
+    }
+
+    public function testSetWithExpressionExecutesCorrectly(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+        $connection->executeStatement(
+            'CREATE TABLE credit_accounts (id INTEGER PRIMARY KEY, balance REAL)',
+        );
+        $connection->executeStatement(
+            "INSERT INTO credit_accounts (id, balance) VALUES (1, 500.00)",
+        );
+
+        $connection->createQueryBuilder()
+            ->update('credit_accounts')
+            ->set('balance', Expression::raw('balance - :amount'))
+            ->where(['id' => 1])
+            ->setParameter('amount', 100)
+            ->executeStatement();
+
+        $result = $connection->createQueryBuilder()
+            ->select('balance')
+            ->from('credit_accounts')
+            ->where(['id' => 1])
+            ->fetchAssociative();
+
+        self::assertSame(400.0, $result['balance']);
+    }
+
+    public function testSetValueWithExpressionGeneratesRawSql(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+
+        $sql = $connection->createQueryBuilder()
+            ->insert('logs')
+            ->values(['message' => ':message', 'created_at' => Expression::raw('NOW()')])
+            ->getSQL();
+
+        self::assertSame(
+            'INSERT INTO logs (message, created_at) VALUES (:message, NOW())',
+            $sql,
+        );
+    }
+
+    public function testSetValueWithExpressionColumnReference(): void
+    {
+        $connection = new Connection(new \PDO('sqlite::memory:'));
+
+        $sql = $connection->createQueryBuilder()
+            ->update('items')
+            ->set('quantity', Expression::raw('quantity + :add_qty'))
+            ->where(['id' => 5])
+            ->getSQL();
+
+        self::assertSame(
+            'UPDATE items SET quantity = quantity + :add_qty WHERE id = :w_id',
+            $sql,
+        );
     }
 }

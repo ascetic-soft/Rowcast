@@ -12,6 +12,7 @@ use AsceticSoft\Rowcast\QueryBuilder\Compiler\UpsertCompiler;
 use AsceticSoft\Rowcast\QueryBuilder\Compiler\UpdateCompiler;
 use AsceticSoft\Rowcast\QueryBuilder\Dialect\DialectFactory;
 use AsceticSoft\Rowcast\QueryBuilder\Dialect\DialectInterface;
+use AsceticSoft\Rowcast\QueryBuilder\Expression\Expression;
 use AsceticSoft\Rowcast\TypeConverter\TypeConverterInterface;
 use AsceticSoft\Rowcast\TypeConverter\TypeConverterRegistry;
 
@@ -325,6 +326,12 @@ class QueryBuilder
 
     public function setValue(string $column, mixed $value): self
     {
+        if ($value instanceof Expression) {
+            $this->insertValues[$column] = $value->sql;
+
+            return $this;
+        }
+
         if (\is_string($value) && str_starts_with($value, ':')) {
             $this->insertValues[$column] = $value;
 
@@ -368,6 +375,12 @@ class QueryBuilder
 
     public function set(string $column, mixed $value): self
     {
+        if ($value instanceof Expression) {
+            $this->updateSet[$column] = $value->sql;
+
+            return $this;
+        }
+
         if (\is_string($value) && str_starts_with($value, ':')) {
             $this->updateSet[$column] = $value;
 

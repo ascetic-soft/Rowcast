@@ -515,6 +515,42 @@ $sql = $connection->createQueryBuilder()
 
 `WHERE` array operator support is also dialect-aware (for example, `ILIKE`/`NOT ILIKE` only for PostgreSQL).
 
+### Expressions in SET / VALUES
+
+Use `Expression::raw()` to embed arbitrary SQL expressions into UPDATE `SET` or INSERT `VALUES`:
+
+```php
+use AsceticSoft\Rowcast\QueryBuilder\Expression\Expression;
+
+// Decrement balance: balance = balance - :amount
+$qb = $connection->createQueryBuilder()
+    ->update('credit_accounts')
+    ->set('balance', Expression::raw('balance - :amount'))
+    ->where(['id' => 1])
+    ->setParameter('amount', 100)
+    ->executeStatement();
+
+// Using NOW() in INSERT
+$connection->createQueryBuilder()
+    ->insert('logs')
+    ->values([
+        'message'    => ':msg',
+        'created_at' => Expression::raw('NOW()'),
+    ])
+    ->setParameter('msg', 'user login')
+    ->executeStatement();
+
+// Column references in expressions
+$connection->createQueryBuilder()
+    ->update('items')
+    ->set('quantity', Expression::raw('quantity + :add_qty'))
+    ->where(['id' => 5])
+    ->setParameter('add_qty', 3)
+    ->executeStatement();
+```
+
+Expression SQL is written through verbatim — no parameter binding or quoting happens on the expression itself. You pass placeholders (`:param`) as part of the raw expression and bind them separately via `setParameter()`.
+
 ## Architecture
 
 ```text
